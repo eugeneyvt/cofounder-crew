@@ -25,7 +25,13 @@ export function buildCodexCommand(
 ): CodexCommand {
   const executionCwd = getExecutionCwd(task);
   const isResume = Boolean(task.codex_resume_session_id);
-  const args = isResume
+  const args: string[] = [];
+
+  if (settings.approval) {
+    args.push("-a", settings.approval);
+  }
+
+  args.push(...(isResume
     ? [
         "exec",
         "resume",
@@ -40,16 +46,13 @@ export function buildCodexCommand(
         "--skip-git-repo-check",
         "--output-last-message",
         path.resolve(task.cwd, task.result_path)
-      ];
+      ]));
 
   if (settings.model) {
     args.push("-m", settings.model);
   }
   if (!isResume && settings.sandbox) {
     args.push("-s", settings.sandbox);
-  }
-  if (!isResume && settings.approval) {
-    args.push("-a", settings.approval);
   }
   if (settings.reasoning_effort) {
     args.push("-c", `model_reasoning_effort="${settings.reasoning_effort}"`);

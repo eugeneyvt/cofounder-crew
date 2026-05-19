@@ -72,7 +72,10 @@ test("Codex command uses member settings", async () => {
     const command = buildCodexCommand(task, member, runtime.settings);
 
     assert.equal(command.command, "codex");
-    assert.deepEqual(command.args.slice(0, 4), ["exec", "--cd", dir, "--skip-git-repo-check"]);
+    assert.deepEqual(command.args.slice(0, 2), ["-a", "never"]);
+    assert.deepEqual(command.args.slice(2, 6), ["exec", "--cd", dir, "--skip-git-repo-check"]);
+    assert.equal(command.args.indexOf("-a"), 0);
+    assert.ok(command.args.indexOf("-a") < command.args.indexOf("exec"));
     assert.ok(command.args.includes("-m"));
     assert.ok(command.args.includes("gpt-5.5"));
     assert.ok(command.args.includes("--json"));
@@ -142,6 +145,8 @@ use_member_home = false
     assert.equal(runtime.codex_config.mode, "allowlist");
     assert.equal(runtime.codex_config.isolated, true);
     assert.deepEqual(runtime.codex_config.allowed_servers, ["linear", "local"]);
+    assert.deepEqual(command.args.slice(0, 2), ["-a", "never"]);
+    assert.ok(command.args.indexOf("-a") < command.args.indexOf("exec"));
     assert.ok(command.args.includes("--ignore-user-config"));
     assert.ok(command.args.some((arg) => arg.includes("mcp_servers.linear.url")));
     assert.ok(command.args.some((arg) => arg.includes("mcp_servers.local.command")));
@@ -427,6 +432,9 @@ test("interrupt cancels a running task and resumes the Codex session", async () 
 
     const result = await readFile(path.join(dir, completedResume.result_path), "utf8");
     assert.match(result, /fake resumed result/);
+    const events = await readFile(path.join(dir, completedResume.events_path), "utf8");
+    assert.match(events, /codex -a never exec resume/);
+    assert.doesNotMatch(events, /codex exec resume .* -a never/);
   } finally {
     process.env.PATH = originalPath;
     await rm(dir, { recursive: true, force: true });
@@ -446,7 +454,8 @@ process.stdin.on("data", (chunk) => {
   input += chunk;
 });
 process.stdin.on("end", () => {
-  const isResume = args[0] === "exec" && args[1] === "resume";
+  const execIndex = args.indexOf("exec");
+  const isResume = execIndex !== -1 && args[execIndex + 1] === "resume";
   console.log(JSON.stringify({ type: "session_meta", payload: { id: "fake-session-123" } }));
   console.log(JSON.stringify({ type: "agent_message", message: "fake agent message" }));
   console.log(JSON.stringify({ type: "tool_call", message: "fake tool call" }));
