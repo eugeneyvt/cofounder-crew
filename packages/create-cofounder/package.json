@@ -1,0 +1,25 @@
+{
+  "name": "create-cofounder",
+  "version": "0.1.4",
+  "description": "Initializer for Cofounder Crew projects",
+  "homepage": "https://github.com/eugeneyvt/cofounder-crew#readme",
+  "bugs": {
+    "url": "https://github.com/eugeneyvt/cofounder-crew/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eugeneyvt/cofounder-crew.git",
+    "directory": "packages/create-cofounder"
+  },
+  "type": "module",
+  "bin": {
+    "create-cofounder": "index.js"
+  },
+  "files": [
+    "index.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  }
+}

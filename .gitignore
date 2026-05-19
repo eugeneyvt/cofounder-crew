@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.cofounder/runs/
+*.log
+
+# Internal planning / agent instructions. Keep out of public GitHub.
+AGENTS.md
+docs/
