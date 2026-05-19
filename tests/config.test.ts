@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { findRecentCodexSessionId } from "../src/codexSessions.js";
 import { getMember, loadMemberSettings, loadProject } from "../src/config.js";
-import { initProject } from "../src/init.js";
+import { deriveProjectInstructionsFromAgents, initProject, syncProjectInstructions } from "../src/init.js";
 import { formatCodexSetup } from "../src/setup.js";
 import { listProjectTemplates } from "../src/templates.js";
 
@@ -40,7 +40,7 @@ test("init creates a loadable Codex team", async () => {
     assert.match(cofounderGitignore, /^runs\/$/m);
     assert.match(cofounderGitignore, /^worktrees\/$/m);
     assert.match(projectInstructions, /Shared Project Instructions/);
-    assert.match(projectInstructions, /Do not put Cofounder\/orchestrator role instructions here/);
+    assert.match(projectInstructions, /cofounder sync project/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -67,13 +67,28 @@ test("init supports the worktree template", async () => {
 test("init preserves existing AGENTS.md and returns required bridge notice", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-existing-agents-"));
   try {
-    await writeFile(path.join(dir, "AGENTS.md"), "# Existing Instructions\n\nKeep this.\n", "utf8");
+    await writeFile(path.join(dir, "AGENTS.md"), `# Existing Instructions
+
+Run npm test before reporting done.
+
+## Cofounder Crew
+
+This project uses Cofounder Crew. You are the Cofounder/orchestrator.
+
+## Code Style
+
+Keep changes small.
+`, "utf8");
     const result = await initProject(dir);
 
     assert.ok(result.skipped.includes("AGENTS.md"));
-    assert.equal(await readFile(path.join(dir, "AGENTS.md"), "utf8"), "# Existing Instructions\n\nKeep this.\n");
+    assert.match(await readFile(path.join(dir, "AGENTS.md"), "utf8"), /Run npm test/);
     assert.match(await readFile(path.join(dir, ".cofounder/codex-instructions.md"), "utf8"), /conversation-first local AI teamwork/);
-    assert.match(await readFile(path.join(dir, ".cofounder/project.md"), "utf8"), /Shared Project Instructions/);
+    const projectContext = await readFile(path.join(dir, ".cofounder/project.md"), "utf8");
+    assert.match(projectContext, /Derived from AGENTS\.md/);
+    assert.match(projectContext, /Run npm test before reporting done/);
+    assert.match(projectContext, /Keep changes small/);
+    assert.doesNotMatch(projectContext, /Cofounder\/orchestrator/);
     assert.equal(result.notices.length, 1);
     assert.match(result.notices[0], /add this block to AGENTS\.md/);
     assert.match(result.notices[0], /Read \.cofounder\/codex-instructions\.md/);
@@ -81,6 +96,40 @@ test("init preserves existing AGENTS.md and returns required bridge notice", asy
     assert.match(result.notices[0], /proactively delegate substantive work/);
     assert.match(result.notices[0], /Do not perform specialist work yourself/);
     assert.match(result.notices[0], /\.cofounder\/project\.md/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("project instruction derivation supports Codex project-doc scope and sync", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-project-doc-"));
+  try {
+    const derived = deriveProjectInstructionsFromAgents(`# Global
+
+Ignore this global section.
+
+--- project-doc ---
+
+# Product Rules
+
+Use pnpm.
+
+## Cofounder Crew
+
+You are the Cofounder/orchestrator.
+`);
+    assert.match(derived ?? "", /Product Rules/);
+    assert.match(derived ?? "", /Use pnpm/);
+    assert.doesNotMatch(derived ?? "", /Ignore this global section/);
+    assert.doesNotMatch(derived ?? "", /Cofounder\/orchestrator/);
+
+    await initProject(dir);
+    await writeFile(path.join(dir, "AGENTS.md"), "# Project Rules\n\nPrefer Vitest.\n", "utf8");
+    const result = await syncProjectInstructions(dir);
+    assert.equal(result.path, ".cofounder/project.md");
+    assert.equal(result.source, "AGENTS.md");
+    assert.equal(result.derived, true);
+    assert.match(await readFile(path.join(dir, ".cofounder/project.md"), "utf8"), /Prefer Vitest/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

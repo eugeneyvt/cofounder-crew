@@ -125,11 +125,11 @@ Then they should reopen Codex from this project directory.
 function projectInstructions(): string {
   return `# Shared Project Instructions
 
-Put project rules that every Cofounder teammate should follow here.
+Cofounder did not find existing project rules to derive worker context from yet.
 
-Do not put Cofounder/orchestrator role instructions here. Keep those in AGENTS.md and .cofounder/codex-instructions.md.
+When AGENTS.md contains project rules, run \`cofounder sync project\` to refresh this file automatically with worker-safe context.
 
-Good candidates:
+Worker-relevant project rules include:
 
 - build and test commands
 - architecture boundaries

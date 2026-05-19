@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { CofounderError } from "./errors.js";
-import { initProject } from "./init.js";
+import { initProject, syncProjectInstructions } from "./init.js";
 import { startMcpServer } from "./mcp.js";
 import { formatCodexSetup, installCodexMcp } from "./setup.js";
 import { listProjectTemplates } from "./templates.js";
@@ -35,6 +35,9 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
       return;
     case "setup":
       await commandSetup(args);
+      return;
+    case "sync":
+      await commandSync(args);
       return;
     case "team":
       await commandTeam();
@@ -123,6 +126,17 @@ async function commandSetup(args: string[]): Promise<void> {
     return;
   }
   console.log(formatCodexSetup());
+}
+
+async function commandSync(args: string[]): Promise<void> {
+  const target = requiredArg(args[0], "sync target");
+  if (target !== "project") {
+    throw new CofounderError(`Unknown sync target: ${target}`);
+  }
+  const result = await syncProjectInstructions();
+  console.log(`updated ${result.path}`);
+  console.log(`source ${result.source}`);
+  console.log(`derived ${result.derived ? "yes" : "no"}`);
 }
 
 async function commandTeam(): Promise<void> {
@@ -271,6 +285,7 @@ function printHelp(): void {
   cofounder templates
   cofounder setup codex
   cofounder setup codex --install
+  cofounder sync project
   cofounder team
   cofounder run <member> <task>
   cofounder delegate <member> <task> [--caller <member>]
