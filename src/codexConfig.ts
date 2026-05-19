@@ -94,6 +94,10 @@ async function loadSelectedMainMcpServers(
   settings: MemberSettings,
   allowedServers: string[]
 ): Promise<Record<string, Record<string, unknown>>> {
+  if (allowedServers.length === 0) {
+    return {};
+  }
+
   const configPath = resolveBaseCodexConfigPath(project, settings);
   if (!(await pathExists(configPath))) {
     throw new CofounderError(`Codex config not found for MCP allowlist: ${configPath}`);

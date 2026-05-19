@@ -404,6 +404,26 @@ use_member_home = false
   }
 });
 
+test("MCP isolated team-only mode does not require primary Codex config", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-mcp-team-only-"));
+  const originalCodexHome = process.env.CODEX_HOME;
+  try {
+    process.env.CODEX_HOME = path.join(dir, "missing-codex-home");
+    await initProject(dir);
+
+    const project = await loadProject(dir);
+    const member = getMember(project, "backend");
+    const runtime = await prepareMemberRuntime(project, member);
+
+    assert.equal(runtime.codex_config.mode, "isolated");
+    assert.deepEqual(runtime.codex_config.from_main_servers, []);
+    assert.deepEqual(runtime.codex_config.team_servers, ["cofounder"]);
+  } finally {
+    process.env.CODEX_HOME = originalCodexHome;
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("MCP allowlist fails when a requested server is unavailable", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-mcp-missing-"));
   try {
