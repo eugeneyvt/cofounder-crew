@@ -1,0 +1,35 @@
+name: Feature request
+description: Propose a focused product, CLI, MCP, or runtime improvement.
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What workflow is hard, unclear, or impossible today?
+      placeholder: "When I use Cofounder with ..., I need ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the smallest useful change.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What simpler or different options did you consider?
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Add examples, commands, configs, or related issues.
+    validations:
+      required: false

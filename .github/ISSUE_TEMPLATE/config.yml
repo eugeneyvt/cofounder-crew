@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://github.com/eugeneyvt/cofounder-crew/tree/main/docs
+    about: Check the docs before opening a setup or configuration issue.
