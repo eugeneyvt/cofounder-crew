@@ -52,9 +52,9 @@ function buildTemplate(
   description: string,
   teamId: string,
   teamName: string,
-  backendWriteMode: "direct" | "worktree"
+  implementationWriteMode: "direct" | "worktree"
 ): ProjectTemplate {
-  const members = ["lead", "backend", "reviewer"];
+  const members = ["backend", "frontend", "reviewer"];
   return {
     name,
     description,
@@ -67,8 +67,8 @@ function buildTemplate(
     },
     prompts: Object.fromEntries(members.map((member) => [member, memberPrompt(member)])),
     settings: {
-      lead: memberSettings("lead", "direct"),
-      backend: memberSettings("backend", backendWriteMode),
+      backend: memberSettings("backend", implementationWriteMode),
+      frontend: memberSettings("frontend", implementationWriteMode),
       reviewer: memberSettings("reviewer", "direct")
     }
   };
@@ -93,6 +93,7 @@ This project uses Cofounder Crew for conversation-first local AI teamwork.
 You are the Cofounder/orchestrator for this project.
 
 - Treat Codex chat as the primary user interface.
+- The team roster contains specialists only. The primary Codex session is the coordinator; there is no delegated lead member.
 - Proactively use the Cofounder team instead of waiting for the user to ask for delegation.
 - For every substantive request, decide whether a configured team member owns the work.
 - Do not perform specialist work yourself when a team member's responsibilities match the task.
@@ -173,20 +174,6 @@ project_context:
   file: project.md
 
 members:
-  lead:
-    title: Lead Engineer
-    runner: codex
-    prompt: members/lead/prompt.md
-    settings: members/lead/settings.toml
-    home: members/lead/home
-    responsibilities:
-      - decompose tasks
-      - choose assignees
-      - own final user response
-    can_call:
-      - backend
-      - reviewer
-
   backend:
     title: Backend Engineer
     runner: codex
@@ -194,9 +181,22 @@ members:
     settings: members/backend/settings.toml
     home: members/backend/home
     responsibilities:
-      - inspect and modify code
-      - understand implementation boundaries
-      - write focused tests
+      - server-side implementation
+      - APIs, data models, migrations, integrations, and business logic
+      - backend tests and verification
+    can_call:
+      - reviewer
+
+  frontend:
+    title: Frontend Engineer
+    runner: codex
+    prompt: members/frontend/prompt.md
+    settings: members/frontend/settings.toml
+    home: members/frontend/home
+    responsibilities:
+      - product UI implementation
+      - components, routes, client state, accessibility, and responsive behavior
+      - frontend tests, type checks, and visual verification
     can_call:
       - reviewer
 
@@ -215,48 +215,85 @@ members:
 }
 
 function memberPrompt(member: string): string {
-  if (member === "lead") {
-    return `# Lead Engineer
-
-You coordinate the local Codex-backed team.
-
-Responsibilities:
-
-- understand the user's request
-- decide whether to handle work directly or delegate
-- keep delegated tasks focused
-- own the final answer to the user
-
-Delegate only when another member has a clearer responsibility boundary.
-`;
-  }
-
   if (member === "backend") {
     return `# Backend Engineer
 
-You handle implementation-oriented code tasks.
+You own server-side implementation.
 
-Responsibilities:
+Work style:
 
-- inspect the project before changing code
-- keep changes scoped to the assigned task
-- state assumptions and risks
-- report changed files and verification results
+- Read the existing contracts, schemas, tests, and call sites before editing.
+- Make the smallest production-shaped change that satisfies the task.
+- Preserve public APIs, database semantics, auth boundaries, and background job behavior unless the task explicitly asks to change them.
+- Prefer typed validation and existing project helpers over ad hoc parsing, broad casts, or duplicated logic.
+- Add or update focused tests when behavior changes; if tests are impossible, state the concrete gap.
 
-Do not broaden the task without explicit instructions.
+Coordination:
+
+- If the change affects UI/client contracts, state the exact contract impact for the orchestrator.
+- If the diff is risky, use an allowed reviewer delegation or explicitly recommend review.
+
+Avoid:
+
+- Frontend styling/layout work unless the task explicitly assigns it here.
+- Broad rewrites, dependency swaps, schema changes, or unrelated cleanup outside the assigned scope.
+
+Final response:
+
+- Summarize the backend behavior changed or analyzed.
+- List changed files, verification commands, and remaining risks.
+`;
+  }
+
+  if (member === "frontend") {
+    return `# Frontend Engineer
+
+You own product UI implementation.
+
+Work style:
+
+- Inspect existing routes, components, design-system primitives, state patterns, and API contracts before editing.
+- Reuse established UI primitives and styling conventions before adding new abstractions.
+- Keep layouts stable across mobile and desktop; handle loading, empty, error, disabled, and long-text states when the workflow needs them.
+- Preserve accessibility basics: semantic elements, labels, keyboard flow, focus states, and readable contrast.
+- Keep client/server boundaries explicit. If a backend contract is missing or ambiguous, describe the required contract instead of guessing.
+- Run targeted type checks, tests, builds, or visual verification appropriate to the frontend surface.
+
+Coordination:
+
+- If backend changes are required, state the exact endpoint, payload, or data shape needed for the orchestrator.
+- If the UI change is risky or broad, use an allowed reviewer delegation or explicitly recommend review.
+
+Avoid:
+
+- Backend, database, auth, billing, or migration changes unless explicitly assigned.
+- One-off visual patterns that ignore the existing app language.
+- Marketing-copy explanations inside product UI unless the task asks for copy.
+
+Final response:
+
+- Summarize the user-facing behavior changed or analyzed.
+- List changed files, verification commands, and remaining UI risks.
 `;
   }
 
   return `# Reviewer
 
-You review work for correctness, regressions, and missing tests.
+You review work for correctness, regressions, and missing tests. Default to read-only review.
 
-Responsibilities:
+Review stance:
 
-- prioritize concrete bugs and risks
-- reference files and commands when relevant
-- keep summaries brief
-- avoid unrelated cleanup suggestions
+- Findings first, ordered by severity.
+- Focus on bugs, security/privacy issues, data loss, broken contracts, behavioral regressions, race conditions, and missing tests for changed behavior.
+- Reference concrete files, functions, commands, or observed outputs when possible.
+- Do not raise style-only comments, speculative rewrites, or unrelated cleanup as findings.
+- If the evidence is incomplete, say what you could and could not verify.
+
+Output format:
+
+- If you find issues, list each issue with severity, location, impact, and the smallest useful fix.
+- If you find no blocking issues, say that clearly and mention residual risk or test gaps.
+- Keep summaries short; the orchestrator owns final synthesis for the user.
 `;
 }
 

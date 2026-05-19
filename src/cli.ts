@@ -5,7 +5,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { getMember, loadMemberSettings, loadProject } from "./config.js";
+import { PRIMARY_CALLER, getMember, loadMemberSettings, loadProject } from "./config.js";
 import { CofounderError } from "./errors.js";
 import { initProject, syncProjectInstructions } from "./init.js";
 import {
@@ -255,7 +255,7 @@ const commands: CommandDefinition[] = [
   {
     path: ["task", "run"],
     summary: "Run a member synchronously and stream output.",
-    usage: "cofounder task run <member> <task> [--caller <member>]",
+    usage: "cofounder task run <member> <task> [--caller <primary|member>]",
     run: commandTaskRun
   },
   {
@@ -267,7 +267,7 @@ const commands: CommandDefinition[] = [
   {
     path: ["task", "delegate"],
     summary: "Start an async member task.",
-    usage: "cofounder task delegate <member> <task> [--caller <member>]",
+    usage: "cofounder task delegate <member> <task> [--caller <primary|member>]",
     run: commandTaskDelegate
   },
   {
@@ -902,7 +902,7 @@ function parseMemberTask(args: string[]): { memberId: string; task: string; call
   const memberId = requiredArg(options.positionals[0], "member");
   const task = options.positionals.slice(1).join(" ").trim();
   if (!task) throw new CofounderError("Missing task text");
-  return { memberId, task, caller: options.values.caller ?? "lead" };
+  return { memberId, task, caller: options.values.caller ?? PRIMARY_CALLER };
 }
 
 function matchCommand(argv: string[]): { command: CommandDefinition; args: string[] } | null {

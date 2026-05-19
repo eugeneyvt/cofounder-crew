@@ -6,6 +6,8 @@ import { assertCondition, CofounderError } from "./errors.js";
 import { configRoot, findProjectRoot, fromConfigRoot, pathExists } from "./paths.js";
 import type { LoadedProject, MemberDefinition, MemberSettings, ProjectContextMode, RunnerName, TeamFile } from "./types.js";
 
+export const PRIMARY_CALLER = "primary";
+
 export async function loadProject(startDir = process.cwd()): Promise<LoadedProject> {
   const projectRoot = await findProjectRoot(startDir);
   assertCondition(projectRoot, `Missing .cofounder/team.yaml in ${path.resolve(startDir)} or its parents`);
@@ -63,6 +65,10 @@ export function getMember(project: LoadedProject, memberId: string): MemberDefin
 
 export function assertCanCall(project: LoadedProject, callerId: string, assigneeId: string): void {
   if (callerId === assigneeId) {
+    return;
+  }
+
+  if (callerId === PRIMARY_CALLER) {
     return;
   }
 

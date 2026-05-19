@@ -58,7 +58,7 @@ cofounder context sync
 
 ## Team Roster
 
-The roster lives in `.cofounder/team.yaml`.
+The roster lives in `.cofounder/team.yaml`. The primary Codex session is the orchestrator, so the default roster contains specialists rather than a delegated lead.
 
 ```yaml
 members:
@@ -69,9 +69,22 @@ members:
     settings: members/backend/settings.toml
     home: members/backend/home
     responsibilities:
-      - inspect and modify code
-      - understand implementation boundaries
-      - write focused tests
+      - server-side implementation
+      - APIs, data models, migrations, integrations, and business logic
+      - backend tests and verification
+    can_call:
+      - reviewer
+
+  frontend:
+    title: Frontend Engineer
+    runner: codex
+    prompt: members/frontend/prompt.md
+    settings: members/frontend/settings.toml
+    home: members/frontend/home
+    responsibilities:
+      - product UI implementation
+      - components, routes, client state, accessibility, and responsive behavior
+      - frontend tests, type checks, and visual verification
     can_call:
       - reviewer
 ```

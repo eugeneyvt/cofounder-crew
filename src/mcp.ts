@@ -55,7 +55,7 @@ function registerTools(server: McpServer): void {
     "team.delegate",
     {
       title: "Delegate task",
-      description: "Start an async task for a Codex-backed team member. Use team.wait or team.result before treating the delegated work as complete.",
+      description: "Start an async task for a Codex-backed team member. Caller defaults to the primary Codex session. Use team.wait or team.result before treating the delegated work as complete.",
       inputSchema: {
         assignee: z.string().min(1),
         task: z.string().min(1),

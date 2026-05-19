@@ -38,6 +38,19 @@ Worktree tasks can also produce an apply patch after completion.
 
 An empty `result.md` means the delegated task did not return a usable final answer. Treat that as incomplete work, even if the subprocess ran commands.
 
+## Nested Delegation
+
+The primary Codex session is the orchestrator. The default team roster contains specialists only; there is no delegated `lead` member.
+
+Delegated members receive explicit nested delegation rules in their task prompt:
+
+- complete the assigned task directly when possible
+- delegate only to allowed `can_call` targets
+- pass their own member id as `caller` when they call `team.delegate`
+- never delegate to themselves
+- never delegate back to `primary`; the primary Codex session owns final orchestration
+- stop retrying if Cofounder MCP calls fail or are unavailable, then continue the assigned task and report that nested delegation was unavailable if it matters
+
 ## Direct Mode
 
 ```toml

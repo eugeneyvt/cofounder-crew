@@ -48,6 +48,8 @@ test("MCP server exposes team tools over stdio", async () => {
     assert.equal(content[0]?.type, "text");
     assert.match(content[0]?.text ?? "", /Default Project Team/);
     assert.match(content[0]?.text ?? "", /backend: Backend Engineer/);
+    assert.match(content[0]?.text ?? "", /frontend: Frontend Engineer/);
+    assert.doesNotMatch(content[0]?.text ?? "", /lead: Lead Engineer/);
 
     const capabilities = await client.callTool({
       name: "team.capabilities",
@@ -84,7 +86,7 @@ test("MCP team.delegate starts a delegated Codex task", async () => {
       name: "team.delegate",
       arguments: {
         assignee: "backend",
-        caller: "lead",
+        caller: "primary",
         task: "inspect via MCP"
       }
     });
@@ -170,7 +172,7 @@ test("MCP team.wait returns running guidance on timeout", async () => {
       name: "team.delegate",
       arguments: {
         assignee: "backend",
-        caller: "lead",
+        caller: "primary",
         task: "stay running"
       }
     });
@@ -238,7 +240,7 @@ test("MCP team.cancel cancels a running delegated task", async () => {
       name: "team.delegate",
       arguments: {
         assignee: "backend",
-        caller: "lead",
+        caller: "primary",
         task: "stay running until cancelled"
       }
     });

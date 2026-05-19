@@ -18,7 +18,7 @@ test("init creates a loadable Codex team", async () => {
     assert.equal(project.projectRoot, dir);
     assert.equal(project.team.version, 1);
     assert.deepEqual(project.team.project_context, { mode: "auto", file: "project.md" });
-    assert.deepEqual(Object.keys(project.team.members), ["lead", "backend", "reviewer"]);
+    assert.deepEqual(Object.keys(project.team.members), ["backend", "frontend", "reviewer"]);
     assert.equal(getMember(project, "backend").runner, "codex");
 
     const settings = await loadMemberSettings(project, getMember(project, "backend"));
@@ -32,6 +32,10 @@ test("init creates a loadable Codex team", async () => {
 
     const reviewerSettings = await loadMemberSettings(project, getMember(project, "reviewer"));
     assert.equal(reviewerSettings.mcp?.mode, "none");
+
+    const frontendSettings = await loadMemberSettings(project, getMember(project, "frontend"));
+    assert.equal(frontendSettings.write?.mode, "direct");
+    assert.equal(frontendSettings.mcp?.mode, "isolated");
 
     const agents = await readFile(path.join(dir, "AGENTS.md"), "utf8");
     const codexInstructions = await readFile(path.join(dir, ".cofounder/codex-instructions.md"), "utf8");
@@ -65,8 +69,10 @@ test("init supports the worktree template", async () => {
     assert.equal(project.team.team?.id, "worktree");
 
     const backendSettings = await loadMemberSettings(project, getMember(project, "backend"));
+    const frontendSettings = await loadMemberSettings(project, getMember(project, "frontend"));
     const reviewerSettings = await loadMemberSettings(project, getMember(project, "reviewer"));
     assert.equal(backendSettings.write?.mode, "worktree");
+    assert.equal(frontendSettings.write?.mode, "worktree");
     assert.equal(reviewerSettings.write?.mode, "direct");
   } finally {
     await rm(dir, { recursive: true, force: true });

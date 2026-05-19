@@ -182,6 +182,7 @@ Codex: I will ask backend to inspect the implementation boundary, then ask revie
 
 Cofounder:
 - backend runs in an isolated worktree
+- frontend can handle UI work with its own prompt and scoped tools
 - reviewer checks the diff
 - Codex reads the results, applies only what you approve, and gives you the final summary
 ```
@@ -194,7 +195,7 @@ Most "AI crew" tools start with a UI, a server, or a framework. Cofounder starts
 | --- | --- |
 | Codex stays the interface | No new app to learn. Chat with Codex and let it orchestrate. |
 | Local plain files | Team config, prompts, memory, runs, and worktrees are inspectable in the repo. |
-| Focused teammates | Backend, reviewer, designer, or any custom role can have its own instructions and settings. |
+| Focused teammates | Backend, frontend, reviewer, designer, or any custom role can have its own instructions and settings. |
 | Scoped MCP | Give Pencil to a designer, GitHub to a reviewer, or no tools to a strict review agent. |
 | Scoped skills | Assign selected project skills, selected user skills, or team-only skills per teammate. |
 | Worktree execution | Let workers make patches in isolated Git worktrees before you apply them. |
@@ -235,7 +236,7 @@ Inside each project, Cofounder creates:
   worktrees/                # optional isolated task worktrees
 ```
 
-The primary Codex session reads the Cofounder instructions and uses MCP tools to coordinate the team. Delegated teammates still run from the original project cwd, but with their own Codex settings and runtime home when isolation is needed.
+The primary Codex session reads the Cofounder instructions and uses MCP tools to coordinate the team. The default roster contains specialists only: backend, frontend, and reviewer. Delegated teammates still run from the original project cwd, but with their own Codex settings and runtime home when isolation is needed.
 
 ## Configure The Team
 

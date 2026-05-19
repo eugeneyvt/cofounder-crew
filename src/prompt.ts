@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { summarizeTeam } from "./config.js";
+import { PRIMARY_CALLER, summarizeTeam } from "./config.js";
 import { fromConfigRoot, pathExists } from "./paths.js";
 import { getProjectTemplate } from "./templates.js";
 import { loadProjectInstructions as loadConfiguredProjectInstructions, type ProjectInstructionsView } from "./projectContext.js";
@@ -45,6 +45,10 @@ ${summarizeTeam(project)}
 - Project cwd: ${project.projectRoot}
 - Allowed delegation targets: ${member.can_call.length > 0 ? member.can_call.join(", ") : "none"}
 
+## Nested Delegation Rules
+
+${nestedDelegationRules(member, caller)}
+
 ## Memory
 
 ${memory.length > 0 ? memory.join("\n\n") : "No memory was injected."}
@@ -53,6 +57,30 @@ ${memory.length > 0 ? memory.join("\n\n") : "No memory was injected."}
 
 ${task}
 `;
+}
+
+function nestedDelegationRules(member: MemberDefinition, caller: string): string {
+  if (member.can_call.length === 0) {
+    return `You are already running as delegated work, not the primary Codex chat.
+
+- Complete the assigned task yourself.
+- Do not call Cofounder MCP tools to delegate work; this member has no allowed delegation targets.
+- If a Cofounder MCP call fails or is unavailable, stop retrying and continue the assigned task with the context you have. Mention that nested delegation was unavailable if it affects confidence.`;
+  }
+
+  const callerRule = caller === PRIMARY_CALLER
+    ? "- The primary Codex session owns orchestration and final user response; do not delegate back to primary."
+    : caller === member.id
+    ? "- Never delegate to yourself."
+    : `- Never delegate to yourself. Avoid delegating back to ${caller} unless the user explicitly asked for that nested workflow.`;
+
+  return `You are already running as delegated work, not the primary Codex chat.
+
+- Prefer completing the assigned task yourself.
+- Use Cofounder MCP delegation only when the task clearly needs one of your allowed targets: ${member.can_call.join(", ")}.
+- If you call team.delegate, pass caller: "${member.id}".
+${callerRule}
+- If a Cofounder MCP call fails or is unavailable, stop retrying and continue the assigned task with the context you have. Mention that nested delegation was unavailable if it affects confidence.`;
 }
 
 async function loadProjectInstructions(project: LoadedProject): Promise<ProjectInstructionsView> {

@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { assertCanCall, getMember, getMemberPaths, loadProject } from "./config.js";
+import { PRIMARY_CALLER, assertCanCall, getMember, getMemberPaths, loadProject } from "./config.js";
 import { CofounderError } from "./errors.js";
 import { applyGitPatch, checkGitPatch, createWorktreePatch } from "./git.js";
 import { findRecentCodexSessionId } from "./codexSessions.js";
@@ -80,7 +80,7 @@ export async function runMember(
   options: { caller?: string; startDir?: string; streamToConsole?: boolean } = {}
 ): Promise<TaskRecord> {
   const project = await loadProject(options.startDir);
-  const caller = options.caller ?? "lead";
+  const caller = options.caller ?? PRIMARY_CALLER;
   const member = getMember(project, memberId);
   const runtime = await prepareMemberRuntime(project, member);
   const workMode = getWorkMode(runtime.settings);
@@ -110,7 +110,7 @@ export async function delegateMember(
   options: { caller?: string; startDir?: string } = {}
 ): Promise<TaskRecord> {
   const project = await loadProject(options.startDir);
-  const caller = options.caller ?? "lead";
+  const caller = options.caller ?? PRIMARY_CALLER;
   assertCanCall(project, caller, memberId);
 
   const member = getMember(project, memberId);

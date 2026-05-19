@@ -166,7 +166,7 @@ function printWorktreePrerequisiteWarning() {
   console.log("    git add .");
   console.log('    git commit -m "chore: initial commit"');
   console.log("");
-  console.log('  Or use direct mode by setting mode = "direct" under [write] in .cofounder/members/backend/settings.toml.');
+  console.log('  Or use direct mode by setting mode = "direct" under [write] in the member settings.toml file.');
 }
 
 function quoteShellArg(value) {
