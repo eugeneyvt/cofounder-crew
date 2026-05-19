@@ -97,9 +97,28 @@ const commands: CommandDefinition[] = [
   },
   {
     path: ["update"],
-    summary: "Update the local runtime dependency and optionally repair Codex MCP.",
-    usage: "cofounder update [--setup-codex] [--yes]",
+    summary: "Update this project and repair Codex MCP.",
+    usage: "cofounder update [--yes] [--no-setup-codex]",
     run: commandUpdate
+  },
+  {
+    path: ["pin"],
+    summary: "Pin Cofounder as a project-local dev dependency.",
+    usage: "cofounder pin [--yes]",
+    details: "Optional advanced mode for teams that want cofounder-crew recorded in this project's package.json.",
+    run: commandPin
+  },
+  {
+    path: ["self"],
+    summary: "Manage the user-level Cofounder installation.",
+    usage: "cofounder self <update>",
+    run: () => printNamespaceHelp(["self"])
+  },
+  {
+    path: ["self", "update"],
+    summary: "Update the globally installed cofounder command.",
+    usage: "cofounder self update",
+    run: commandSelfUpdate
   },
   {
     path: ["setup", "codex"],
@@ -407,7 +426,11 @@ async function commandInit(args: string[]): Promise<void> {
 async function commandUpdate(args: string[]): Promise<void> {
   const options = parseOptions(args);
   const yes = options.flags.has("yes") || options.flags.has("y");
-  const setupCodex = options.flags.has("setup-codex");
+
+  let setupCodex = !options.flags.has("no-setup-codex");
+  if (options.flags.has("setup-codex")) {
+    setupCodex = true;
+  }
   const projectRoot = await findProjectRoot(process.cwd()) ?? process.cwd();
 
   printHeader("Update Cofounder");
@@ -416,30 +439,61 @@ async function commandUpdate(args: string[]): Promise<void> {
     printInfo("No package.json found. Leaving project dependencies unchanged.");
   } else {
     const dependencyType = getCofounderDependencyType(packageInfo.data);
-    if (!dependencyType) {
-      printInfo("No cofounder-crew dependency found in package.json. Leaving dependencies unchanged.");
+    if (dependencyType) {
+      printInfo(`Project has a local cofounder-crew pin in ${dependencyType}. Run cofounder pin --yes to update it.`);
     } else {
-      if (!yes) {
-        await confirmUnlessYes(options, "Update cofounder-crew@latest in package.json?");
-      }
-      const npmArgs = dependencyType === "dependencies"
-        ? ["install", "cofounder-crew@latest"]
-        : ["install", "--save-dev", "cofounder-crew@latest"];
-      printInfo(`Running npm ${npmArgs.join(" ")}`);
-      await runLoggedCommand("npm", npmArgs, projectRoot);
+      printInfo("No project-local cofounder-crew pin. Global Cofounder is the default runtime.");
     }
   }
 
   if (setupCodex) {
-    const command = await installCodexMcp();
-    printInfo(`Installed Codex MCP: ${command}`);
+    if (!yes && process.stdin.isTTY && process.stdout.isTTY) {
+      setupCodex = await confirm("Install or repair the Codex MCP entry?", true);
+    }
+    if (setupCodex) {
+      const command = await installCodexMcp();
+      printInfo(`Installed Codex MCP: ${command}`);
+    } else {
+      printInfo("Codex MCP unchanged.");
+    }
   } else {
-    printInfo("Codex MCP unchanged. Add --setup-codex to repair it during update.");
+    printInfo("Codex MCP unchanged because --no-setup-codex was passed.");
   }
 
   console.log("");
   printInfo("Cofounder update does not overwrite .cofounder/, member settings, memory, or AGENTS.md.");
   await printDoctor({ json: false, compact: true });
+}
+
+async function commandPin(args: string[]): Promise<void> {
+  const options = parseOptions(args);
+  const yes = options.flags.has("yes") || options.flags.has("y");
+  const projectRoot = await findProjectRoot(process.cwd()) ?? process.cwd();
+  const packageInfo = await readPackageInfo(projectRoot);
+  if (!packageInfo) {
+    throw new CofounderError("cofounder pin requires package.json. Run it from a Node project or use global Cofounder without pinning.");
+  }
+
+  const dependencyType = getCofounderDependencyType(packageInfo.data);
+  const npmArgs = dependencyType === "dependencies"
+    ? ["install", "cofounder-crew@latest"]
+    : ["install", "--save-dev", "cofounder-crew@latest"];
+  if (!yes) {
+    await confirmUnlessYes(options, dependencyType
+      ? `Update project-local cofounder-crew pin in ${dependencyType}?`
+      : "Add cofounder-crew@latest as a project-local dev dependency?");
+  }
+  printHeader("Pin Cofounder");
+  printInfo(`Running npm ${npmArgs.join(" ")}`);
+  await runLoggedCommand("npm", npmArgs, projectRoot);
+  printInfo("Pinned project-local cofounder-crew. Daily use can still go through the global cofounder command.");
+}
+
+async function commandSelfUpdate(_args: string[]): Promise<void> {
+  printHeader("Update Cofounder CLI");
+  printInfo("Running npm install -g cofounder-crew@latest");
+  await runLoggedCommand("npm", ["install", "-g", "cofounder-crew@latest"], process.cwd());
+  printInfo("Updated global cofounder command.");
 }
 
 async function commandSetupCodex(args: string[]): Promise<void> {
@@ -879,7 +933,7 @@ function printHelp(args: string[] = []): void {
   console.log("  cofounder start");
   console.log("  cofounder help <command>");
   console.log("");
-  printCommandGroup("Setup", ["start", "doctor", "init", "update", "setup codex"]);
+  printCommandGroup("Setup", ["start", "doctor", "init", "update", "pin", "self update", "setup codex"]);
   printCommandGroup("Team", ["team", "add", "member list", "member add", "member set", "mcp add", "skill add", "context show"]);
   printCommandGroup("Tasks", ["task delegate", "task run", "task list", "task status", "task logs", "task diff", "task apply"]);
 }
@@ -977,7 +1031,7 @@ function parseOptions(args: string[]): { positionals: string[]; values: Record<s
 }
 
 function isBooleanFlag(name: string): boolean {
-  return ["yes", "y", "install", "setup-codex", "delete-files", "json"].includes(name);
+  return ["yes", "y", "install", "setup-codex", "no-setup-codex", "delete-files", "json"].includes(name);
 }
 
 function requiredArg(value: string | undefined, name: string): string {
