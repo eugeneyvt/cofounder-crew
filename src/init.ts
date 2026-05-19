@@ -43,6 +43,7 @@ export async function initProject(projectRoot = process.cwd(), options: { templa
   await ensureDir(`${CONFIG_DIR}/worktrees`);
   await ensureDir(`${CONFIG_DIR}/memory/members`);
 
+  await ensureFile(`${CONFIG_DIR}/.gitignore`, "runs/\nworktrees/\n");
   await ensureFile("AGENTS.md", template.codexInstructions);
   if (skipped.includes("AGENTS.md")) {
     notices.push(formatExistingAgentsNotice());

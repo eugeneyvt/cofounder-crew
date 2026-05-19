@@ -22,15 +22,22 @@ test("init creates a loadable Codex team", async () => {
     const settings = await loadMemberSettings(project, getMember(project, "backend"));
     assert.equal(settings.model, "gpt-5.5");
     assert.equal(settings.write?.mode, "direct");
+    assert.equal(settings.mcp?.mode, "inherit");
     assert.equal(settings.runner?.codex?.json, true);
+
+    const reviewerSettings = await loadMemberSettings(project, getMember(project, "reviewer"));
+    assert.equal(reviewerSettings.mcp?.mode, "none");
 
     const agents = await readFile(path.join(dir, "AGENTS.md"), "utf8");
     const codexInstructions = await readFile(path.join(dir, ".cofounder/codex-instructions.md"), "utf8");
+    const cofounderGitignore = await readFile(path.join(dir, ".cofounder/.gitignore"), "utf8");
     assert.match(agents, /conversation-first local AI teamwork/);
     assert.match(agents, /You are the Cofounder\/orchestrator/);
     assert.match(agents, /Proactively use the Cofounder team/);
     assert.match(agents, /Do not perform specialist work yourself/);
     assert.equal(codexInstructions, agents);
+    assert.match(cofounderGitignore, /^runs\/$/m);
+    assert.match(cofounderGitignore, /^worktrees\/$/m);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -102,6 +102,7 @@ Cofounder configuration lives in plain files:
 - .cofounder/members/<member>/settings.toml defines model, sandbox, MCP, memory, and write-mode settings.
 - .cofounder/memory/ stores project and member memory notes.
 - .cofounder/runs/ stores task records, logs, prompts, and results.
+- .cofounder/.gitignore keeps generated runs and worktrees out of project diffs.
 
 When the team needs to change, edit these files directly and keep the structure simple.
 
@@ -219,6 +220,7 @@ Responsibilities:
 
 function memberSettings(member: string, writeMode: "direct" | "worktree"): string {
   const effort = member === "reviewer" ? "medium" : "high";
+  const mcpMode = member === "reviewer" ? "none" : "inherit";
   return `model = "gpt-5.5"
 sandbox = "workspace-write"
 approval = "never"
@@ -229,7 +231,7 @@ live_interrupt = false
 mode = "${writeMode}"
 
 [mcp]
-mode = "inherit"
+mode = "${mcpMode}"
 allow = []
 
 [memory]
