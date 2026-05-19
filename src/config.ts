@@ -4,7 +4,7 @@ import { parse as parseToml } from "smol-toml";
 import YAML from "yaml";
 import { assertCondition, CofounderError } from "./errors.js";
 import { configRoot, findProjectRoot, fromConfigRoot, pathExists } from "./paths.js";
-import type { LoadedProject, MemberDefinition, MemberSettings, RunnerName, TeamFile } from "./types.js";
+import type { LoadedProject, MemberDefinition, MemberSettings, ProjectContextMode, RunnerName, TeamFile } from "./types.js";
 
 export async function loadProject(startDir = process.cwd()): Promise<LoadedProject> {
   const projectRoot = await findProjectRoot(startDir);
@@ -88,6 +88,7 @@ function normalizeTeamFile(input: unknown): TeamFile {
   assertCondition(isRecord(input.members), "team.yaml must define members");
 
   const defaults = isRecord(input.defaults) ? input.defaults : {};
+  const projectContext = isRecord(input.project_context) ? input.project_context : {};
   const defaultRunner = normalizeRunner(defaults.runner ?? "codex");
   const members: Record<string, MemberDefinition> = {};
 
@@ -119,6 +120,10 @@ function normalizeTeamFile(input: unknown): TeamFile {
       id: optionalStringValue(input.team.id),
       name: optionalStringValue(input.team.name)
     } : undefined,
+    project_context: {
+      mode: normalizeProjectContextMode(projectContext.mode ?? "auto"),
+      file: optionalStringValue(projectContext.file) ?? "project.md"
+    },
     defaults: {
       runner: defaultRunner,
       cwd: defaults.cwd === "inherit" || defaults.cwd === undefined ? "inherit" : undefined,
@@ -126,6 +131,13 @@ function normalizeTeamFile(input: unknown): TeamFile {
     },
     members
   };
+}
+
+function normalizeProjectContextMode(value: unknown): ProjectContextMode {
+  if (value !== "auto" && value !== "manual") {
+    throw new CofounderError(`Unsupported project_context.mode "${String(value)}"; expected "auto" or "manual"`);
+  }
+  return value;
 }
 
 async function validateMemberFiles(projectRoot: string, team: TeamFile): Promise<void> {

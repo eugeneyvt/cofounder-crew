@@ -51,7 +51,8 @@ Before changing anything, inspect:
 
 Then choose the smallest safe setup:
 - If .cofounder/ is missing, initialize Cofounder. Use the worktree template only when the repo has at least one commit; otherwise use the default template.
-- If .cofounder/ already exists, do not reinitialize it. Verify the files and run `cofounder sync project` if the CLI is available.
+- If .cofounder/ already exists, do not reinitialize it. Verify the files and report the project_context mode.
+- Keep project_context.mode as auto unless I ask for a manually curated .cofounder/project.md.
 - If this project has package.json, prefer a dev dependency install. Otherwise use npm create.
 - Install or repair the Codex MCP entry only if it is missing or wrong.
 - If AGENTS.md already exists, do not overwrite it. Show me the Cofounder bridge block to add.
@@ -138,7 +139,25 @@ AGENTS.md
 
 `AGENTS.md` is for the primary Codex session. It tells Codex to act as the Cofounder/orchestrator.
 
-`.cofounder/project.md` is the worker-facing project context. Cofounder derives it from `AGENTS.md` with Cofounder/orchestrator instructions removed. Refresh it with:
+Worker project context has two modes:
+
+```yaml
+project_context:
+  mode: auto
+  file: project.md
+```
+
+`auto` is the default. Each delegated worker gets fresh context derived from `AGENTS.md`, with the `## Cofounder Crew` orchestration block removed.
+
+`manual` makes workers read `.cofounder/project.md` instead. Use it when you want a curated worker context that does not change until you edit or sync it.
+
+```yaml
+project_context:
+  mode: manual
+  file: project.md
+```
+
+Refresh the manual snapshot with:
 
 ```bash
 npx cofounder sync project
@@ -221,7 +240,7 @@ Useful settings:
 | `mcp.mode = "inherit"` | Give the teammate the same Codex MCP environment. |
 | `mcp.mode = "none"` | Keep the teammate local-only. The generated reviewer uses this default. |
 | `mcp.mode = "allowlist"` | Give the teammate only selected MCP servers. |
-| `include_project_doc = false` | Prevent raw `AGENTS.md` from being injected into workers. Cofounder supplies `.cofounder/project.md` instead. |
+| `include_project_doc = false` | Prevent raw `AGENTS.md` from being injected by Codex. Cofounder supplies worker-safe project context itself. |
 
 ## MCP Tools
 
@@ -261,7 +280,7 @@ Inspect first:
 - Whether this project has cofounder-crew in package.json.
 - The installed project version with `npm ls cofounder-crew --depth=0` when package.json exists.
 - Whether Codex MCP server "cofounder" exists and points at `npx -y --package cofounder-crew -- cofounder mcp`.
-- Whether .cofounder/team.yaml, member prompts/settings, .cofounder/.gitignore, and .cofounder/project.md exist.
+- Whether .cofounder/team.yaml, project_context mode, member prompts/settings, .cofounder/.gitignore, and .cofounder/project.md exist.
 - Whether AGENTS.md contains the Cofounder bridge block.
 
 Then update safely:
@@ -269,7 +288,7 @@ Then update safely:
 - If MCP is missing or wrong, repair it.
 - Do not re-run init over an existing .cofounder/.
 - Do not overwrite team prompts, settings, memory, or AGENTS.md.
-- Run `cofounder sync project` if the CLI is available so worker project context is refreshed from AGENTS.md.
+- If project_context mode is manual, run `cofounder sync project` if you want to refresh .cofounder/project.md from AGENTS.md.
 - If generated instructions changed, show me any bridge/config changes to apply manually.
 - If MCP changed, tell me to restart Codex from this project directory.
 
@@ -280,6 +299,8 @@ Manual update commands:
 
 ```bash
 npm install --save-dev cofounder-crew@latest
+
+# Optional when project_context.mode is manual:
 npx cofounder sync project
 
 codex mcp remove cofounder

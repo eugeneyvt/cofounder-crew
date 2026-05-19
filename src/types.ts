@@ -4,11 +4,17 @@ export type RunnerName = "codex";
 
 export type WorkMode = "direct" | "worktree";
 
+export type ProjectContextMode = "auto" | "manual";
+
 export interface TeamFile {
   version: number;
   team?: {
     id?: string;
     name?: string;
+  };
+  project_context: {
+    mode: ProjectContextMode;
+    file: string;
   };
   defaults?: {
     runner?: RunnerName;

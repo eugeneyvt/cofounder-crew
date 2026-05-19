@@ -5,7 +5,8 @@ import path from "node:path";
 import test from "node:test";
 import { findRecentCodexSessionId } from "../src/codexSessions.js";
 import { getMember, loadMemberSettings, loadProject } from "../src/config.js";
-import { deriveProjectInstructionsFromAgents, initProject, syncProjectInstructions } from "../src/init.js";
+import { initProject, syncProjectInstructions } from "../src/init.js";
+import { deriveProjectInstructionsFromAgents } from "../src/projectContext.js";
 import { formatCodexSetup } from "../src/setup.js";
 import { listProjectTemplates } from "../src/templates.js";
 
@@ -16,6 +17,7 @@ test("init creates a loadable Codex team", async () => {
     const project = await loadProject(dir);
     assert.equal(project.projectRoot, dir);
     assert.equal(project.team.version, 1);
+    assert.deepEqual(project.team.project_context, { mode: "auto", file: "project.md" });
     assert.deepEqual(Object.keys(project.team.members), ["lead", "backend", "reviewer"]);
     assert.equal(getMember(project, "backend").runner, "codex");
 

@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { summarizeTeam } from "./config.js";
 import { fromConfigRoot, pathExists } from "./paths.js";
+import { getProjectTemplate } from "./templates.js";
+import { loadProjectInstructions as loadConfiguredProjectInstructions, type ProjectInstructionsView } from "./projectContext.js";
 import type { LoadedProject, MemberDefinition, MemberSettings } from "./types.js";
 
 export async function assemblePrompt(
@@ -27,9 +29,10 @@ ${memberPrompt.trim()}
 
 ## Shared Project Instructions
 
-Project AGENTS.md is not used as delegated-worker context because it may contain Cofounder/orchestrator-only instructions.
+Project context mode: ${projectInstructions.mode}
+Project context source: ${projectInstructions.source}
 
-${projectInstructions}
+${projectInstructions.content}
 
 ## Team Roster
 
@@ -52,14 +55,8 @@ ${task}
 `;
 }
 
-async function loadProjectInstructions(project: LoadedProject): Promise<string> {
-  const projectInstructionsPath = path.join(project.configRoot, "project.md");
-  if (!(await pathExists(projectInstructionsPath))) {
-    return "No shared project instructions were injected. Put worker-relevant project rules in .cofounder/project.md.";
-  }
-
-  const content = (await readFile(projectInstructionsPath, "utf8")).trim();
-  return content || "(empty)";
+async function loadProjectInstructions(project: LoadedProject): Promise<ProjectInstructionsView> {
+  return await loadConfiguredProjectInstructions(project, getProjectTemplate().projectInstructions);
 }
 
 async function loadMemory(project: LoadedProject, member: MemberDefinition, settings: MemberSettings): Promise<string[]> {

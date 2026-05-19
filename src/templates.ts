@@ -150,6 +150,10 @@ defaults:
   cwd: inherit
   run_mode: async
 
+project_context:
+  mode: auto
+  file: project.md
+
 members:
   lead:
     title: Lead Engineer

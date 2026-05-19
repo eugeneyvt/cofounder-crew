@@ -1,8 +1,9 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { configRoot, CONFIG_DIR, findProjectRoot, pathExists } from "./paths.js";
 import { EXISTING_AGENTS_APPEND_SNIPPET, getProjectTemplate } from "./templates.js";
 import { assertCondition } from "./errors.js";
+import { buildProjectInstructions } from "./projectContext.js";
 
 export interface InitResult {
   created: string[];
@@ -57,9 +58,10 @@ export async function initProject(projectRoot = process.cwd(), options: { templa
     notices.push(formatExistingAgentsNotice());
   }
   await ensureFile(`${CONFIG_DIR}/codex-instructions.md`, template.codexInstructions);
-  await ensureFile(`${CONFIG_DIR}/project.md`, hadAgents
-    ? await buildProjectInstructions(root, template.projectInstructions)
-    : template.projectInstructions);
+  const projectInstructions = hadAgents
+    ? (await buildProjectInstructions(root, template.projectInstructions)).content
+    : template.projectInstructions;
+  await ensureFile(`${CONFIG_DIR}/project.md`, projectInstructions);
   await ensureFile(`${CONFIG_DIR}/team.yaml`, template.teamYaml);
   await ensureFile(`${CONFIG_DIR}/memory/project.md`, "# Project Memory\n\n");
 
@@ -80,71 +82,12 @@ export async function syncProjectInstructions(startDir = process.cwd()): Promise
   const template = getProjectTemplate();
   const result = await buildProjectInstructions(root, template.projectInstructions);
   const target = path.join(configRoot(root), "project.md");
-  await writeFile(target, result, "utf8");
+  await writeFile(target, result.content, "utf8");
   return {
     path: path.relative(root, target),
-    source: await pathExists(path.join(root, "AGENTS.md")) ? "AGENTS.md" : "template",
-    derived: result !== template.projectInstructions
+    source: result.source,
+    derived: result.derived
   };
-}
-
-export async function buildProjectInstructions(projectRoot: string, fallback: string): Promise<string> {
-  const agentsPath = path.join(projectRoot, "AGENTS.md");
-  if (!(await pathExists(agentsPath))) {
-    return fallback;
-  }
-
-  const agents = await readFile(agentsPath, "utf8");
-  const derived = deriveProjectInstructionsFromAgents(agents);
-  return derived ?? fallback;
-}
-
-export function deriveProjectInstructionsFromAgents(content: string): string | null {
-  const projectDocMarker = "--- project-doc ---";
-  const markerIndex = content.indexOf(projectDocMarker);
-  const scoped = markerIndex === -1 ? content : content.slice(markerIndex + projectDocMarker.length);
-  const stripped = stripMarkdownSection(scoped, "Cofounder Crew")
-    .replace(/^<INSTRUCTIONS>\s*/i, "")
-    .replace(/\s*<\/INSTRUCTIONS>\s*$/i, "")
-    .trim();
-
-  if (stripped.length === 0) {
-    return null;
-  }
-
-  return `# Shared Project Instructions
-
-Derived from AGENTS.md for delegated workers.
-
-${stripped}
-`;
-}
-
-function stripMarkdownSection(content: string, title: string): string {
-  const lines = content.split(/\r?\n/);
-  const result: string[] = [];
-  let skipLevel: number | null = null;
-
-  for (const line of lines) {
-    const heading = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
-    if (heading) {
-      const level = heading[1].length;
-      const headingTitle = heading[2].trim().toLowerCase();
-      if (skipLevel !== null && level <= skipLevel) {
-        skipLevel = null;
-      }
-      if (headingTitle === title.toLowerCase()) {
-        skipLevel = level;
-        continue;
-      }
-    }
-
-    if (skipLevel === null) {
-      result.push(line);
-    }
-  }
-
-  return result.join("\n");
 }
 
 function formatExistingAgentsNotice(): string {
