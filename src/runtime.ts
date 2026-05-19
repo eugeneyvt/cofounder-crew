@@ -179,7 +179,7 @@ export async function waitForTaskResult(
   options: { startDir?: string; timeoutMs?: number; pollIntervalMs?: number; maxChars?: number; tail?: number } = {}
 ): Promise<TaskResultView> {
   const project = await loadProject(options.startDir);
-  const timeoutMs = clampInt(options.timeoutMs ?? 120_000, 1, 600_000);
+  const timeoutMs = clampInt(options.timeoutMs ?? 45_000, 1, 110_000);
   const pollIntervalMs = clampInt(options.pollIntervalMs ?? 1_000, 100, 10_000);
   const deadline = Date.now() + timeoutMs;
   let task = await readTask(project.projectRoot, taskId);
@@ -388,14 +388,18 @@ export function formatLogEntry(entry: LogEntry): string {
 }
 
 export function formatTaskResultPayload(view: TaskResultView): Record<string, unknown> {
+  const terminal = isTerminalStatus(view.task.status);
   return {
     task_id: view.task.id,
     status: view.task.status,
     assignee: view.task.assignee,
     caller: view.task.caller,
+    terminal,
+    still_running: !terminal,
     exit_code: view.task.exit_code ?? null,
     error: view.task.error ?? null,
     timed_out: view.timed_out,
+    next_action: formatTaskResultNextAction(view, terminal),
     result_empty: view.result_empty,
     result_truncated: view.result_truncated,
     result_path: view.task.result_path,
@@ -406,6 +410,26 @@ export function formatTaskResultPayload(view: TaskResultView): Record<string, un
     result: view.result,
     recent_events: view.recent_logs.map(formatLogEntry)
   };
+}
+
+function formatTaskResultNextAction(view: TaskResultView, terminal: boolean): string {
+  if (view.timed_out && !terminal) {
+    return "Task is still running. Inspect recent_events and call team.wait again, or use team.interrupt/team.cancel if it is stuck or needs steering.";
+  }
+
+  if (!terminal) {
+    return "Task is still running. Continue monitoring before treating delegated work as complete.";
+  }
+
+  if (view.task.status === "succeeded" && view.result_empty) {
+    return "Task succeeded but result is empty. Inspect recent_events/logs before relying on it.";
+  }
+
+  if (view.task.status === "succeeded") {
+    return "Read result and inspect any worktree diff before applying changes.";
+  }
+
+  return "Task did not produce successful delegated work. Inspect error and recent_events.";
 }
 
 async function buildTaskResultView(

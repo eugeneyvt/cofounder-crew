@@ -102,11 +102,22 @@ test("MCP team.delegate starts a delegated Codex task", async () => {
         timeout_ms: 5_000
       }
     });
-    const waitPayload = JSON.parse(textContent(waitResult)) as { status: string; result: string; result_empty: boolean; timed_out: boolean };
+    const waitPayload = JSON.parse(textContent(waitResult)) as {
+      status: string;
+      result: string;
+      result_empty: boolean;
+      timed_out: boolean;
+      terminal: boolean;
+      still_running: boolean;
+      next_action: string;
+    };
     assert.equal(waitPayload.status, "succeeded");
     assert.equal(waitPayload.result, "fake result\n");
     assert.equal(waitPayload.result_empty, false);
     assert.equal(waitPayload.timed_out, false);
+    assert.equal(waitPayload.terminal, true);
+    assert.equal(waitPayload.still_running, false);
+    assert.match(waitPayload.next_action, /Read result/);
 
     const resultResult = await client.callTool({
       name: "team.result",
@@ -128,6 +139,74 @@ test("MCP team.delegate starts a delegated Codex task", async () => {
     });
     assert.match(textContent(logsResult), /fake codex received/);
     assert.match(textContent(logsResult), /agent.message/);
+  } finally {
+    await client.close();
+    await rm(dir, { recursive: true, force: true });
+    await rm(fakeBin, { recursive: true, force: true });
+  }
+});
+
+test("MCP team.wait returns running guidance on timeout", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-mcp-wait-timeout-"));
+  const fakeBin = await mkdtemp(path.join(os.tmpdir(), "cofounder-mcp-wait-timeout-bin-"));
+  const fakeCodexPath = path.join(fakeBin, "codex");
+  await writeFile(fakeCodexPath, fakeCodexScript(), "utf8");
+  await chmod(fakeCodexPath, 0o755);
+
+  const transport = new StdioClientTransport({
+    command: path.join(repoRoot, "node_modules/.bin/tsx"),
+    args: [path.join(repoRoot, "src/mcp.ts")],
+    cwd: dir,
+    env: testEnv({ PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ""}` }),
+    stderr: "pipe"
+  });
+  const client = new Client({ name: "cofounder-test", version: "0.1.0" });
+
+  try {
+    await initProject(dir);
+    await client.connect(transport);
+
+    const delegateResult = await client.callTool({
+      name: "team.delegate",
+      arguments: {
+        assignee: "backend",
+        caller: "lead",
+        task: "stay running"
+      }
+    });
+    const payload = JSON.parse(textContent(delegateResult)) as { task_id: string };
+
+    await pollTaskStatus(client, payload.task_id, /running/);
+
+    const waitResult = await client.callTool({
+      name: "team.wait",
+      arguments: {
+        task_id: payload.task_id,
+        timeout_ms: 100,
+        poll_interval_ms: 100
+      }
+    });
+    const waitPayload = JSON.parse(textContent(waitResult)) as {
+      status: string;
+      timed_out: boolean;
+      terminal: boolean;
+      still_running: boolean;
+      next_action: string;
+      recent_events: string[];
+    };
+    assert.equal(waitPayload.status, "running");
+    assert.equal(waitPayload.timed_out, true);
+    assert.equal(waitPayload.terminal, false);
+    assert.equal(waitPayload.still_running, true);
+    assert.match(waitPayload.next_action, /call team\.wait again/);
+    assert.ok(waitPayload.recent_events.length > 0);
+
+    await client.callTool({
+      name: "team.cancel",
+      arguments: {
+        task_id: payload.task_id
+      }
+    });
   } finally {
     await client.close();
     await rm(dir, { recursive: true, force: true });

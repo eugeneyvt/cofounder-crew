@@ -83,7 +83,7 @@ function registerTools(server: McpServer): void {
       description: "Wait until a delegated task finishes, fails, or times out, then return status, result text, and recent logs.",
       inputSchema: {
         task_id: z.string().min(1),
-        timeout_ms: z.number().int().positive().max(600_000).optional(),
+        timeout_ms: z.number().int().positive().max(110_000).optional(),
         poll_interval_ms: z.number().int().positive().max(10_000).optional(),
         max_chars: z.number().int().positive().max(50_000).optional(),
         tail: z.number().int().positive().max(500).optional()

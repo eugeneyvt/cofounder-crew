@@ -253,7 +253,7 @@ Cofounder exposes the team runtime to Codex through MCP:
 | `team.list` | Read the roster and responsibility map. |
 | `team.capabilities` | Inspect runtime capabilities. |
 | `team.delegate` | Start a delegated task. |
-| `team.wait` | Wait for a task and return status, result, and recent logs. |
+| `team.wait` | Wait briefly for a task and return status, next action, result, and recent logs. A wait timeout means the task is still running, not failed. |
 | `team.result` | Read a task result with explicit empty/truncated flags. |
 | `team.status` | Check task status and metadata. |
 | `team.logs` | Read task events and logs. |
