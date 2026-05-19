@@ -17,6 +17,8 @@
   <p>
     <a href="#quickstart">Quickstart</a>
     ·
+    <a href="#agentsmd-bridge">AGENTS.md</a>
+    ·
     <a href="#why-it-exists">Why</a>
     ·
     <a href="#how-it-works">How It Works</a>
@@ -147,6 +149,26 @@ Then ask Codex:
 
 ```text
 Use the Cofounder team. Show me who is available.
+```
+
+## AGENTS.md Bridge
+
+Codex will not reliably act as the Cofounder orchestrator unless `AGENTS.md` tells it to load the project Cofounder instructions.
+
+If the project does not have `AGENTS.md`, `cofounder start` creates one. If `AGENTS.md` already exists, Cofounder will not overwrite it; add this block manually:
+
+```markdown
+## Cofounder Crew
+
+This project uses Cofounder Crew for local AI teamwork. You are the Cofounder/orchestrator for this project. Read .cofounder/codex-instructions.md, use the Cofounder MCP tools, and proactively delegate substantive work to the team member whose responsibilities best match the task. Do not perform specialist work yourself when a configured team member owns that responsibility; coordinate the work, monitor progress, and synthesize the final response.
+```
+
+Keep this block stable. In automatic context mode, Cofounder strips the orchestrator block before building worker context, so teammates receive project rules without being told they are the main orchestrator.
+
+Check it with:
+
+```bash
+cofounder doctor
 ```
 
 ## How It Feels
