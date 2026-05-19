@@ -12,6 +12,7 @@ export async function assemblePrompt(
   task: string
 ): Promise<string> {
   const memberPrompt = await readFile(fromConfigRoot(project.projectRoot, member.prompt), "utf8");
+  const projectInstructions = await loadProjectInstructions(project);
   const memory = await loadMemory(project, member, settings);
 
   return `# Cofounder Delegated Task
@@ -23,6 +24,12 @@ You are ${member.id}: ${member.title}.
 ## Member Instructions
 
 ${memberPrompt.trim()}
+
+## Shared Project Instructions
+
+Project AGENTS.md is not used as delegated-worker context because it may contain Cofounder/orchestrator-only instructions.
+
+${projectInstructions}
 
 ## Team Roster
 
@@ -43,6 +50,16 @@ ${memory.length > 0 ? memory.join("\n\n") : "No memory was injected."}
 
 ${task}
 `;
+}
+
+async function loadProjectInstructions(project: LoadedProject): Promise<string> {
+  const projectInstructionsPath = path.join(project.configRoot, "project.md");
+  if (!(await pathExists(projectInstructionsPath))) {
+    return "No shared project instructions were injected. Put worker-relevant project rules in .cofounder/project.md.";
+  }
+
+  const content = (await readFile(projectInstructionsPath, "utf8")).trim();
+  return content || "(empty)";
 }
 
 async function loadMemory(project: LoadedProject, member: MemberDefinition, settings: MemberSettings): Promise<string[]> {

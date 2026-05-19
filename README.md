@@ -47,6 +47,7 @@ First inspect the current state before changing anything:
 - Check Node.js and npm are available and Node is >=22.
 - Check whether this project already has .cofounder/.
 - Check whether .cofounder/.gitignore exists and ignores runs/ plus worktrees/ if .cofounder/ exists.
+- Check whether .cofounder/project.md exists for shared worker project instructions if .cofounder/ exists.
 - Check whether this project already has AGENTS.md.
 - Check whether cofounder-crew is already installed in this project.
 - Check whether the Codex MCP server named "cofounder" is already configured with `codex mcp list` or `codex mcp get cofounder`.
@@ -55,6 +56,7 @@ First inspect the current state before changing anything:
 Then decide the smallest correct setup:
 - If .cofounder/ already exists, do not reinitialize it. Verify MCP setup and tell me what is already configured.
 - If .cofounder/ exists but .cofounder/.gitignore is missing, add it with runs/ and worktrees/ so Cofounder task artifacts stay out of git diffs.
+- If .cofounder/ exists but .cofounder/project.md is missing, add it and put only worker-relevant project rules there. Do not copy orchestrator-only AGENTS.md instructions into it.
 - If this is a package project with package.json, prefer installing cofounder-crew as a dev dependency and run project-local initialization.
 - If this is not a package project, use npm create cofounder@latest for initialization.
 - Use the worktree template only if this project is a Git repository with at least one commit; otherwise use the default template.
@@ -156,6 +158,7 @@ AGENTS.md
 .cofounder/
   .gitignore
   codex-instructions.md
+  project.md
   team.yaml
   members/
     lead/
@@ -177,6 +180,7 @@ AGENTS.md
 
 Everything important is plain files: prompts, settings, memory notes, task records, logs, generated Codex config, diffs, and final results.
 Generated task logs and worktrees are ignored by `.cofounder/.gitignore`.
+Delegated workers read shared project rules from `.cofounder/project.md`, not from project `AGENTS.md`, because `AGENTS.md` may contain Cofounder/orchestrator-only instructions.
 
 ## Existing AGENTS.md
 
@@ -191,6 +195,7 @@ This project uses Cofounder Crew for local AI teamwork. You are the Cofounder/or
 ```
 
 The full generated guidance is always written to `.cofounder/codex-instructions.md`.
+Copy any project rules that workers must follow into `.cofounder/project.md`. Do not copy the Cofounder/orchestrator bridge block there.
 
 ## Configuration
 
@@ -236,7 +241,17 @@ allow = []
 project = true
 member = true
 max_snippets = 5
+
+[runner.codex]
+include_project_doc = false
+json = true
+extra_args = []
+use_member_home = false
 ```
+
+`include_project_doc = false` makes delegated Codex workers run with `project_doc_max_bytes=0`, so project `AGENTS.md` does not accidentally tell a backend worker or reviewer that it is the Cofounder/orchestrator.
+
+Shared project rules for workers go in `.cofounder/project.md`.
 
 Use `mcp.mode = "none"` for teammates that only need local shell/filesystem access. The generated reviewer uses this by default so unrelated connector auth problems do not block a plain code review.
 
@@ -290,6 +305,7 @@ First inspect the current state before changing anything:
 - Check whether the MCP command points at `npx -y --package cofounder-crew -- cofounder mcp`.
 - Check whether .cofounder/ exists and inspect .cofounder/team.yaml plus member settings.
 - Check whether .cofounder/.gitignore exists and ignores runs/ plus worktrees/.
+- Check whether .cofounder/project.md exists and contains worker-relevant project rules.
 - Check whether reviewer-only members inherit MCP and have recent runs blocked by unrelated connector auth errors.
 - Check whether AGENTS.md contains the Cofounder bridge block, or whether .cofounder/codex-instructions.md exists.
 
@@ -298,6 +314,7 @@ Then choose the smallest safe update:
 - If this project does not install cofounder-crew locally, do not add it just for an update unless there is a project reason; the MCP npx command can use the latest package.
 - If the MCP entry is missing or uses an old command, repair it to `codex mcp add cofounder -- npx -y --package cofounder-crew -- cofounder mcp`.
 - If .cofounder/ exists but .cofounder/.gitignore is missing, add it with runs/ and worktrees/ so delegated task artifacts do not appear as project changes.
+- If .cofounder/ exists but .cofounder/project.md is missing, add it for shared worker project rules; do not copy orchestrator-only AGENTS.md content into it.
 - If a reviewer-only member is blocked by inherited connector auth, set that member's `[mcp] mode` to `"none"`.
 - Do not re-run project init unless .cofounder/ is missing.
 - Do not overwrite existing team prompts, settings, memory, or AGENTS.md.
@@ -319,6 +336,9 @@ codex mcp add cofounder -- npx -y --package cofounder-crew -- cofounder mcp
 
 # If this project already has .cofounder/ but lacks its internal ignore file:
 printf "runs/\nworktrees/\n" > .cofounder/.gitignore
+
+# If this project already has .cofounder/ but lacks shared worker instructions:
+printf "# Shared Project Instructions\n\nPut worker-relevant project rules here.\n" > .cofounder/project.md
 
 # Verify what npm and Codex see:
 npm view cofounder-crew version

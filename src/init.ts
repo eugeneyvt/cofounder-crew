@@ -49,6 +49,7 @@ export async function initProject(projectRoot = process.cwd(), options: { templa
     notices.push(formatExistingAgentsNotice());
   }
   await ensureFile(`${CONFIG_DIR}/codex-instructions.md`, template.codexInstructions);
+  await ensureFile(`${CONFIG_DIR}/project.md`, template.projectInstructions);
   await ensureFile(`${CONFIG_DIR}/team.yaml`, template.teamYaml);
   await ensureFile(`${CONFIG_DIR}/memory/project.md`, "# Project Memory\n\n");
 
@@ -68,5 +69,6 @@ For Codex to use Cofounder automatically, add this block to AGENTS.md:
 
 ${EXISTING_AGENTS_APPEND_SNIPPET}
 
-Full Cofounder instructions are available at .cofounder/codex-instructions.md.`;
+Full Cofounder instructions are available at .cofounder/codex-instructions.md.
+Worker-relevant project rules should live in .cofounder/project.md, not in the Cofounder/orchestrator bridge block.`;
 }

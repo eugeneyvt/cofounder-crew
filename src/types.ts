@@ -60,6 +60,7 @@ export interface MemberSettings {
       json?: boolean;
       extra_args?: string[];
       use_member_home?: boolean;
+      include_project_doc?: boolean;
     };
   };
 }

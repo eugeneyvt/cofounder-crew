@@ -44,6 +44,8 @@ test("task creation writes inspectable files", async () => {
 
     const savedPrompt = await readFile(path.join(project.projectRoot, saved.prompt_path), "utf8");
     assert.match(savedPrompt, /Cofounder Delegated Task/);
+    assert.match(savedPrompt, /Shared Project Instructions/);
+    assert.match(savedPrompt, /Project AGENTS\.md is not used as delegated-worker context/);
     assert.match(savedPrompt, /inspect the repo/);
 
     const effectiveConfig = await readFile(path.join(project.projectRoot, saved.member_effective_config_path ?? ""), "utf8");
@@ -78,6 +80,7 @@ test("Codex command uses member settings", async () => {
     assert.ok(command.args.indexOf("-a") < command.args.indexOf("exec"));
     assert.ok(command.args.includes("-m"));
     assert.ok(command.args.includes("gpt-5.5"));
+    assert.ok(command.args.includes("project_doc_max_bytes=0"));
     assert.ok(command.args.includes("--json"));
     assert.equal(command.args.at(-1), "-");
     assert.equal(command.cwd, dir);
@@ -92,6 +95,15 @@ test("Codex command uses member settings", async () => {
     const memberHomeCommand = buildCodexCommand(task, member, runtime.settings);
     assert.equal(memberHomeCommand.env.CODEX_HOME, path.join(dir, ".cofounder/members/backend/home"));
     assert.equal(memberHomeCommand.cwd, dir);
+
+    runtime.settings.runner = {
+      codex: {
+        ...runtime.settings.runner?.codex,
+        include_project_doc: true
+      }
+    };
+    const projectDocCommand = buildCodexCommand(task, member, runtime.settings);
+    assert.equal(projectDocCommand.args.includes("project_doc_max_bytes=0"), false);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

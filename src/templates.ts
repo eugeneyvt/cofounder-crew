@@ -7,6 +7,7 @@ export interface ProjectTemplate {
   description: string;
   members: string[];
   codexInstructions: string;
+  projectInstructions: string;
   teamYaml: string;
   prompts: Record<string, string>;
   settings: Record<string, string>;
@@ -58,6 +59,7 @@ function buildTemplate(
     description,
     members,
     codexInstructions: codexInstructions(),
+    projectInstructions: projectInstructions(),
     teamYaml: teamYaml(teamId, teamName),
     prompts: Object.fromEntries(members.map((member) => [member, memberPrompt(member)])),
     settings: {
@@ -99,6 +101,7 @@ You are the Cofounder/orchestrator for this project.
 Cofounder configuration lives in plain files:
 
 - .cofounder/team.yaml defines members, responsibilities, and delegation rules.
+- .cofounder/project.md defines shared project instructions for delegated teammates.
 - .cofounder/members/<member>/prompt.md defines each member's role instructions.
 - .cofounder/members/<member>/settings.toml defines model, sandbox, MCP, memory, and write-mode settings.
 - .cofounder/memory/ stores project and member memory notes.
@@ -116,6 +119,22 @@ npx -y --package cofounder-crew -- cofounder setup codex --install
 \`\`\`
 
 Then they should reopen Codex from this project directory.
+`;
+}
+
+function projectInstructions(): string {
+  return `# Shared Project Instructions
+
+Put project rules that every Cofounder teammate should follow here.
+
+Do not put Cofounder/orchestrator role instructions here. Keep those in AGENTS.md and .cofounder/codex-instructions.md.
+
+Good candidates:
+
+- build and test commands
+- architecture boundaries
+- coding style
+- release constraints
 `;
 }
 
@@ -244,5 +263,6 @@ max_snippets = 5
 json = true
 extra_args = []
 use_member_home = false
+include_project_doc = false
 `;
 }

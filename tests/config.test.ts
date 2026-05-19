@@ -31,6 +31,7 @@ test("init creates a loadable Codex team", async () => {
     const agents = await readFile(path.join(dir, "AGENTS.md"), "utf8");
     const codexInstructions = await readFile(path.join(dir, ".cofounder/codex-instructions.md"), "utf8");
     const cofounderGitignore = await readFile(path.join(dir, ".cofounder/.gitignore"), "utf8");
+    const projectInstructions = await readFile(path.join(dir, ".cofounder/project.md"), "utf8");
     assert.match(agents, /conversation-first local AI teamwork/);
     assert.match(agents, /You are the Cofounder\/orchestrator/);
     assert.match(agents, /Proactively use the Cofounder team/);
@@ -38,6 +39,8 @@ test("init creates a loadable Codex team", async () => {
     assert.equal(codexInstructions, agents);
     assert.match(cofounderGitignore, /^runs\/$/m);
     assert.match(cofounderGitignore, /^worktrees\/$/m);
+    assert.match(projectInstructions, /Shared Project Instructions/);
+    assert.match(projectInstructions, /Do not put Cofounder\/orchestrator role instructions here/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -70,12 +73,14 @@ test("init preserves existing AGENTS.md and returns required bridge notice", asy
     assert.ok(result.skipped.includes("AGENTS.md"));
     assert.equal(await readFile(path.join(dir, "AGENTS.md"), "utf8"), "# Existing Instructions\n\nKeep this.\n");
     assert.match(await readFile(path.join(dir, ".cofounder/codex-instructions.md"), "utf8"), /conversation-first local AI teamwork/);
+    assert.match(await readFile(path.join(dir, ".cofounder/project.md"), "utf8"), /Shared Project Instructions/);
     assert.equal(result.notices.length, 1);
     assert.match(result.notices[0], /add this block to AGENTS\.md/);
     assert.match(result.notices[0], /Read \.cofounder\/codex-instructions\.md/);
     assert.match(result.notices[0], /Cofounder\/orchestrator/);
     assert.match(result.notices[0], /proactively delegate substantive work/);
     assert.match(result.notices[0], /Do not perform specialist work yourself/);
+    assert.match(result.notices[0], /\.cofounder\/project\.md/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

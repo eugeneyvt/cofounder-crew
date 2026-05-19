@@ -57,6 +57,9 @@ export function buildCodexCommand(
   if (settings.reasoning_effort) {
     args.push("-c", `model_reasoning_effort="${settings.reasoning_effort}"`);
   }
+  if (settings.runner?.codex?.include_project_doc !== true) {
+    args.push("-c", "project_doc_max_bytes=0");
+  }
   if (settings.runner?.codex?.json) {
     args.push("--json");
   }
