@@ -29,7 +29,7 @@ test("create-cofounder prints registry-safe follow-up commands", async () => {
     assert.match(stdout, /worktree template needs a Git repository with at least one commit/);
     assert.match(stdout, /git commit -m "chore: initial commit"/);
     assert.match(stdout, /mode = "direct"/);
-    assert.match(stdout, /npx -y --package cofounder-crew -- cofounder setup codex --install/);
+    assert.match(stdout, /npx -y --package cofounder-crew -- cofounder start --setup-codex --yes/);
     assert.match(stdout, /\n  codex\n/);
     assert.match(stdout, /Then ask Codex:/);
     assert.match(stdout, /Use the Cofounder team\. Show me who is available\./);

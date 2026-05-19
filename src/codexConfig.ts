@@ -6,12 +6,14 @@ import { CofounderError } from "./errors.js";
 import { pathExists } from "./paths.js";
 import type { LoadedProject, MemberDefinition, MemberSettings } from "./types.js";
 
-export type McpMode = "inherit" | "none" | "allowlist";
+export type McpMode = "inherit" | "none" | "allowlist" | "isolated";
 
 export interface PreparedCodexConfig {
   mode: McpMode;
   config_path: string | null;
   allowed_servers: string[];
+  from_main_servers: string[];
+  team_servers: string[];
   isolated: boolean;
   override_args: string[];
 }
@@ -20,17 +22,23 @@ export async function prepareCodexConfig(
   project: LoadedProject,
   member: MemberDefinition,
   settings: MemberSettings,
-  memberHomeAbsolutePath: string | null
+  memberHomeAbsolutePath: string | null,
+  options: { disabledSkillPaths?: string[] } = {}
 ): Promise<PreparedCodexConfig> {
-  const mode = settings.mcp?.mode ?? "inherit";
-  const allowedServers = settings.mcp?.allow ?? [];
-  validateMcpSettings(mode, allowedServers);
+  const mode = normalizeMcpMode(settings);
+  const fromMainServers = settings.mcp?.from_main ?? settings.mcp?.allow ?? [];
+  const teamServers = settings.mcp?.team ?? [];
+  validateMcpSettings(mode, settings.mcp?.allow ?? [], fromMainServers, teamServers);
 
-  const selectedServers = mode === "allowlist"
-    ? await loadSelectedMcpServers(project, settings, allowedServers)
+  const mainServers = mode === "allowlist" || mode === "isolated"
+    ? await loadSelectedMainMcpServers(project, settings, fromMainServers)
     : {};
+  const teamMcpServers = mode === "allowlist" || mode === "isolated"
+    ? await loadSelectedTeamMcpServers(project, teamServers)
+    : {};
+  const selectedServers = mergeMcpServers(mainServers, teamMcpServers);
 
-  const codexConfig = buildCodexConfig(settings, selectedServers);
+  const codexConfig = buildCodexConfig(settings, selectedServers, options.disabledSkillPaths ?? []);
   let configPath: string | null = null;
   if (memberHomeAbsolutePath) {
     const configAbsolutePath = path.join(memberHomeAbsolutePath, "config.toml");
@@ -41,29 +49,47 @@ export async function prepareCodexConfig(
   return {
     mode,
     config_path: configPath,
-    allowed_servers: mode === "allowlist" ? allowedServers : [],
+    allowed_servers: mode === "allowlist" || mode === "isolated" ? [...fromMainServers, ...teamServers] : [],
+    from_main_servers: mode === "allowlist" || mode === "isolated" ? fromMainServers : [],
+    team_servers: mode === "allowlist" || mode === "isolated" ? teamServers : [],
     isolated: mode !== "inherit",
-    override_args: mode === "allowlist" ? buildMcpOverrideArgs(selectedServers) : []
+    override_args: mode === "allowlist" || mode === "isolated" ? buildMcpOverrideArgs(selectedServers) : []
   };
 }
 
-function validateMcpSettings(mode: McpMode, allowedServers: string[]): void {
-  if (!["inherit", "none", "allowlist"].includes(mode)) {
+function normalizeMcpMode(settings: MemberSettings): McpMode {
+  if (!settings.mcp?.mode && ((settings.mcp?.from_main?.length ?? 0) > 0 || (settings.mcp?.team?.length ?? 0) > 0)) {
+    return "isolated";
+  }
+  return settings.mcp?.mode ?? "inherit";
+}
+
+function validateMcpSettings(
+  mode: McpMode,
+  legacyAllowedServers: string[],
+  fromMainServers: string[],
+  teamServers: string[]
+): void {
+  if (!["inherit", "none", "allowlist", "isolated"].includes(mode)) {
     throw new CofounderError(`Unsupported MCP mode: ${mode}`);
   }
 
-  if (mode !== "allowlist" && allowedServers.length > 0) {
-    throw new CofounderError("mcp.allow can only be used when mcp.mode = \"allowlist\"");
+  if (mode !== "allowlist" && legacyAllowedServers.length > 0) {
+    throw new CofounderError("mcp.allow can only be used when mcp.mode = \"allowlist\"; use mcp.from_main for isolated mode");
   }
 
-  for (const server of allowedServers) {
+  if ((mode === "inherit" || mode === "none") && (fromMainServers.length > 0 || teamServers.length > 0)) {
+    throw new CofounderError(`mcp.from_main and mcp.team can only be used when mcp.mode = "isolated"`);
+  }
+
+  for (const server of [...fromMainServers, ...teamServers]) {
     if (!/^[A-Za-z0-9_-]+$/.test(server)) {
       throw new CofounderError(`Unsupported MCP server id: ${server}`);
     }
   }
 }
 
-async function loadSelectedMcpServers(
+async function loadSelectedMainMcpServers(
   project: LoadedProject,
   settings: MemberSettings,
   allowedServers: string[]
@@ -95,15 +121,63 @@ async function loadSelectedMcpServers(
   return selected;
 }
 
+async function loadSelectedTeamMcpServers(
+  project: LoadedProject,
+  allowedServers: string[]
+): Promise<Record<string, Record<string, unknown>>> {
+  const selected: Record<string, Record<string, unknown>> = {};
+  const missing: string[] = [];
+
+  for (const server of allowedServers) {
+    const serverPath = path.join(project.configRoot, "mcp", `${server}.toml`);
+    if (!(await pathExists(serverPath))) {
+      missing.push(server);
+      continue;
+    }
+
+    const raw = await readFile(serverPath, "utf8");
+    const parsed = parseToml(raw) as unknown;
+    if (!isRecord(parsed)) {
+      throw new CofounderError(`Team MCP server ${server} must be a TOML object`);
+    }
+    selected[server] = expandProjectPlaceholders(sanitizeMcpServerDefinition(parsed, true), project);
+  }
+
+  if (missing.length > 0) {
+    throw new CofounderError(`Team MCP server file(s) not found: ${missing.map((server) => `.cofounder/mcp/${server}.toml`).join(", ")}`);
+  }
+
+  return selected;
+}
+
+function mergeMcpServers(
+  mainServers: Record<string, Record<string, unknown>>,
+  teamServers: Record<string, Record<string, unknown>>
+): Record<string, Record<string, unknown>> {
+  const duplicate = Object.keys(teamServers).find((server) => mainServers[server] !== undefined);
+  if (duplicate) {
+    throw new CofounderError(`MCP server "${duplicate}" is configured in both mcp.from_main and mcp.team`);
+  }
+  return { ...mainServers, ...teamServers };
+}
+
 function resolveBaseCodexConfigPath(project: LoadedProject, settings: MemberSettings): string {
   if (settings.mcp?.config_path) {
-    return path.isAbsolute(settings.mcp.config_path)
-      ? settings.mcp.config_path
-      : path.resolve(project.projectRoot, settings.mcp.config_path);
+    return resolveUserPath(settings.mcp.config_path, project.projectRoot);
   }
 
   const codexHome = process.env.CODEX_HOME ? path.resolve(process.env.CODEX_HOME) : path.join(os.homedir(), ".codex");
   return path.join(codexHome, "config.toml");
+}
+
+function resolveUserPath(filePath: string, baseDir: string): string {
+  if (filePath === "~") {
+    return os.homedir();
+  }
+  if (filePath.startsWith("~/")) {
+    return path.join(os.homedir(), filePath.slice(2));
+  }
+  return path.isAbsolute(filePath) ? filePath : path.resolve(baseDir, filePath);
 }
 
 function sanitizeMcpServerDefinition(definition: Record<string, unknown>, includeInlineEnv: boolean): Record<string, unknown> {
@@ -131,7 +205,11 @@ function sanitizeMcpServerDefinition(definition: Record<string, unknown>, includ
   return sanitized;
 }
 
-function buildCodexConfig(settings: MemberSettings, selectedServers: Record<string, Record<string, unknown>>): string {
+function buildCodexConfig(
+  settings: MemberSettings,
+  selectedServers: Record<string, Record<string, unknown>>,
+  disabledSkillPaths: string[]
+): string {
   const config: Record<string, unknown> = {};
   if (settings.model) {
     config.model = settings.model;
@@ -141,6 +219,14 @@ function buildCodexConfig(settings: MemberSettings, selectedServers: Record<stri
   }
   if (Object.keys(selectedServers).length > 0) {
     config.mcp_servers = selectedServers;
+  }
+  if (disabledSkillPaths.length > 0) {
+    config.skills = {
+      config: disabledSkillPaths.map((skillPath) => ({
+        path: skillPath,
+        enabled: false
+      }))
+    };
   }
 
   return `# Generated by Cofounder. Do not put auth secrets here.\n${stringifyToml(config)}\n`;
@@ -154,6 +240,25 @@ function buildMcpOverrideArgs(selectedServers: Record<string, Record<string, unk
     }
   }
   return args;
+}
+
+function expandProjectPlaceholders(value: Record<string, unknown>, project: LoadedProject): Record<string, unknown> {
+  return expandValue(value, project) as Record<string, unknown>;
+}
+
+function expandValue(value: unknown, project: LoadedProject): unknown {
+  if (typeof value === "string") {
+    return value
+      .replaceAll("{project_root}", project.projectRoot)
+      .replaceAll("{config_root}", project.configRoot);
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => expandValue(entry, project));
+  }
+  if (isRecord(value)) {
+    return Object.fromEntries(Object.entries(value).map(([key, entryValue]) => [key, expandValue(entryValue, project)]));
+  }
+  return value;
 }
 
 function tomlValue(value: unknown): string {

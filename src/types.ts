@@ -51,10 +51,20 @@ export interface MemberSettings {
     mode?: WorkMode;
   };
   mcp?: {
-    mode?: "inherit" | "none" | "allowlist";
+    mode?: "inherit" | "none" | "allowlist" | "isolated";
     allow?: string[];
+    from_main?: string[];
+    team?: string[];
     config_path?: string;
     include_inline_env?: boolean;
+  };
+  skills?: {
+    mode?: "inherit" | "none" | "allowlist" | "isolated";
+    from_project?: string[];
+    from_main?: string[];
+    team?: string[];
+    roots?: string[];
+    max_bytes?: number;
   };
   memory?: {
     project?: boolean;

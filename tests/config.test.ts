@@ -24,7 +24,10 @@ test("init creates a loadable Codex team", async () => {
     const settings = await loadMemberSettings(project, getMember(project, "backend"));
     assert.equal(settings.model, "gpt-5.5");
     assert.equal(settings.write?.mode, "direct");
-    assert.equal(settings.mcp?.mode, "inherit");
+    assert.equal(settings.mcp?.mode, "isolated");
+    assert.deepEqual(settings.mcp?.team, ["cofounder"]);
+    assert.equal(settings.skills?.mode, "isolated");
+    assert.deepEqual(settings.skills?.from_project, []);
     assert.equal(settings.runner?.codex?.json, true);
 
     const reviewerSettings = await loadMemberSettings(project, getMember(project, "reviewer"));
@@ -34,6 +37,7 @@ test("init creates a loadable Codex team", async () => {
     const codexInstructions = await readFile(path.join(dir, ".cofounder/codex-instructions.md"), "utf8");
     const cofounderGitignore = await readFile(path.join(dir, ".cofounder/.gitignore"), "utf8");
     const projectInstructions = await readFile(path.join(dir, ".cofounder/project.md"), "utf8");
+    const cofounderMcp = await readFile(path.join(dir, ".cofounder/mcp/cofounder.toml"), "utf8");
     assert.match(agents, /conversation-first local AI teamwork/);
     assert.match(agents, /You are the Cofounder\/orchestrator/);
     assert.match(agents, /Proactively use the Cofounder team/);
@@ -42,8 +46,10 @@ test("init creates a loadable Codex team", async () => {
     assert.match(cofounderGitignore, /^runs\/$/m);
     assert.match(cofounderGitignore, /^worktrees\/$/m);
     assert.match(cofounderGitignore, /^members\/\*\/home\/$/m);
+    assert.match(cofounderMcp, /cofounder-crew/);
+    assert.match(cofounderMcp, /cwd = "\{project_root\}"/);
     assert.match(projectInstructions, /Shared Project Instructions/);
-    assert.match(projectInstructions, /cofounder sync project/);
+    assert.match(projectInstructions, /cofounder context sync/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -160,8 +166,8 @@ test("templates and Codex setup helpers are inspectable", async () => {
   assert.deepEqual(listProjectTemplates().map((template) => template.name), ["default", "worktree"]);
   await assert.rejects(() => initProject(process.cwd(), { template: "missing" }), /Unknown template/);
   const setup = formatCodexSetup();
-  assert.match(setup, /npx -y --package cofounder-crew -- cofounder mcp/);
-  assert.match(setup, /codex mcp add cofounder -- cofounder mcp/);
+  assert.match(setup, /npx -y --package cofounder-crew -- cofounder serve mcp/);
+  assert.match(setup, /codex mcp add cofounder -- cofounder serve mcp/);
   assert.match(setup, /mcp\.js/);
 });
 

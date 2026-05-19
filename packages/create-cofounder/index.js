@@ -30,7 +30,9 @@ function printConversationNext({ setupInstalled }) {
   console.log("");
   console.log("Next:");
   if (!setupInstalled) {
-    console.log(`  ${formatCofounderCommand(["setup", "codex", "--install"])}`);
+    console.log(`  ${formatCofounderCommand(["start", "--setup-codex", "--yes"])}`);
+  } else {
+    console.log(`  ${formatCofounderCommand(["doctor"])}`);
   }
   console.log("  codex");
   console.log("");

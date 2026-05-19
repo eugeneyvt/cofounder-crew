@@ -50,6 +50,8 @@ export async function initProject(projectRoot = process.cwd(), options: { templa
   await ensureDir(CONFIG_DIR);
   await ensureDir(`${CONFIG_DIR}/runs`);
   await ensureDir(`${CONFIG_DIR}/worktrees`);
+  await ensureDir(`${CONFIG_DIR}/mcp`);
+  await ensureDir(`${CONFIG_DIR}/skills`);
   await ensureDir(`${CONFIG_DIR}/memory/members`);
 
   await ensureFile(`${CONFIG_DIR}/.gitignore`, "runs/\nworktrees/\nmembers/*/home/\n");
@@ -64,6 +66,9 @@ export async function initProject(projectRoot = process.cwd(), options: { templa
   await ensureFile(`${CONFIG_DIR}/project.md`, projectInstructions);
   await ensureFile(`${CONFIG_DIR}/team.yaml`, template.teamYaml);
   await ensureFile(`${CONFIG_DIR}/memory/project.md`, "# Project Memory\n\n");
+  for (const [server, config] of Object.entries(template.mcp)) {
+    await ensureFile(`${CONFIG_DIR}/mcp/${server}.toml`, config);
+  }
 
   for (const member of template.members) {
     await ensureDir(`${CONFIG_DIR}/members/${member}/home`);

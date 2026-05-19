@@ -4,6 +4,7 @@ import path from "node:path";
 import { diffChangedFiles, mergeFiles, readGitSnapshot } from "./git.js";
 import { appendTaskEvent, appendTaskLog, markTaskStatus, readTask, updateTask } from "./tasks.js";
 import type { PreparedCodexConfig } from "./codexConfig.js";
+import type { PreparedSkills } from "./skills.js";
 import type { CodexCommand, MemberDefinition, MemberSettings, RunnerCapabilities, TaskEvent, TaskRecord } from "./types.js";
 
 export const CODEX_CAPABILITIES: RunnerCapabilities = {
@@ -21,10 +22,12 @@ export function buildCodexCommand(
   task: TaskRecord,
   member: MemberDefinition,
   settings: MemberSettings,
-  codexConfig?: PreparedCodexConfig
+  codexConfig?: PreparedCodexConfig,
+  skills?: PreparedSkills
 ): CodexCommand {
   const executionCwd = getExecutionCwd(task);
   const isResume = Boolean(task.codex_resume_session_id);
+  const useMemberHome = settings.runner?.codex?.use_member_home === true || skills?.requires_member_home === true;
   const args: string[] = [];
 
   if (settings.approval) {
@@ -63,7 +66,7 @@ export function buildCodexCommand(
   if (settings.runner?.codex?.json) {
     args.push("--json");
   }
-  if (codexConfig?.isolated) {
+  if (codexConfig?.isolated && !useMemberHome) {
     args.push("--ignore-user-config");
     args.push(...codexConfig.override_args);
   }
@@ -77,8 +80,10 @@ export function buildCodexCommand(
   args.push("-");
 
   const env = { ...process.env };
-  if (settings.runner?.codex?.use_member_home && member.home) {
-    env.CODEX_HOME = path.resolve(task.config_root, member.home);
+  if (useMemberHome && member.home) {
+    const memberHome = path.resolve(task.config_root, member.home);
+    env.CODEX_HOME = memberHome;
+    env.HOME = memberHome;
   }
 
   return {
@@ -93,11 +98,11 @@ export async function runCodexTask(
   task: TaskRecord,
   member: MemberDefinition,
   settings: MemberSettings,
-  options: { streamToConsole?: boolean; codexConfig?: PreparedCodexConfig } = {}
+  options: { streamToConsole?: boolean; codexConfig?: PreparedCodexConfig; skills?: PreparedSkills } = {}
 ): Promise<TaskRecord> {
   let current = await markTaskStatus(task.cwd, task, "running", "Codex runner started");
   const prompt = await readFile(path.resolve(task.cwd, task.prompt_path), "utf8");
-  const command = buildCodexCommand(current, member, settings, options.codexConfig);
+  const command = buildCodexCommand(current, member, settings, options.codexConfig, options.skills);
   const executionCwd = getExecutionCwd(current);
   const baseSnapshot = await readGitSnapshot(executionCwd);
   current = await updateTask(task.cwd, current.id, {
@@ -115,7 +120,7 @@ export async function runCodexTask(
     time: new Date().toISOString(),
     task_id: current.id,
     type: "runner.environment",
-    message: `cwd=${command.cwd} CODEX_HOME=${command.env.CODEX_HOME ?? "default"}`
+    message: `cwd=${command.cwd} CODEX_HOME=${command.env.CODEX_HOME ?? "default"} HOME=${command.env.HOME ?? "default"}`
   });
   await appendTaskEvent(task.cwd, current, {
     time: new Date().toISOString(),

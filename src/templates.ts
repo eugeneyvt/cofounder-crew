@@ -9,6 +9,7 @@ export interface ProjectTemplate {
   codexInstructions: string;
   projectInstructions: string;
   teamYaml: string;
+  mcp: Record<string, string>;
   prompts: Record<string, string>;
   settings: Record<string, string>;
 }
@@ -61,6 +62,9 @@ function buildTemplate(
     codexInstructions: codexInstructions(),
     projectInstructions: projectInstructions(),
     teamYaml: teamYaml(teamId, teamName),
+    mcp: {
+      cofounder: cofounderMcp()
+    },
     prompts: Object.fromEntries(members.map((member) => [member, memberPrompt(member)])),
     settings: {
       lead: memberSettings("lead", "direct"),
@@ -68,6 +72,15 @@ function buildTemplate(
       reviewer: memberSettings("reviewer", "direct")
     }
   };
+}
+
+function cofounderMcp(): string {
+  return `command = "npx"
+args = ["-y", "--package", "cofounder-crew", "--", "cofounder", "serve", "mcp"]
+cwd = "{project_root}"
+startup_timeout_sec = 20
+tool_timeout_sec = 120
+`;
 }
 
 function codexInstructions(): string {
@@ -104,12 +117,16 @@ Cofounder configuration lives in plain files:
 - .cofounder/team.yaml defines members, responsibilities, and delegation rules.
 - .cofounder/project.md defines shared project instructions for delegated teammates.
 - .cofounder/members/<member>/prompt.md defines each member's role instructions.
-- .cofounder/members/<member>/settings.toml defines model, sandbox, MCP, memory, and write-mode settings.
+- .cofounder/members/<member>/settings.toml defines model, sandbox, MCP, native Codex skills, memory, and write-mode settings.
+- .cofounder/mcp/<server>.toml defines project-owned MCP servers that can be assigned to specific members.
+- .cofounder/skills/<skill>/SKILL.md defines project-owned skills that Cofounder links into assigned members' runtime homes for native Codex skill loading.
+- .agents/skills/<skill>/SKILL.md defines normal project skills visible to the primary Codex session; assign selected ones to members with skills.from_project.
 - .cofounder/memory/ stores project and member memory notes.
 - .cofounder/runs/ stores task records, logs, prompts, and results.
 - .cofounder/.gitignore keeps generated runs, worktrees, and member runtime home files out of project diffs.
 
 When the team needs to change, edit these files directly and keep the structure simple.
+Do not simulate member skills by pasting SKILL.md paths into delegated task prompts; assign them in settings.toml so Codex discovers them at startup.
 
 ## If Cofounder Tools Are Missing
 
@@ -128,7 +145,7 @@ function projectInstructions(): string {
 
 Cofounder did not find existing project rules to derive worker context from yet.
 
-When AGENTS.md contains project rules, run \`cofounder sync project\` to refresh this file automatically with worker-safe context.
+When AGENTS.md contains project rules, run \`cofounder context sync\` to refresh this file automatically with worker-safe context.
 
 Worker-relevant project rules include:
 
@@ -245,7 +262,8 @@ Responsibilities:
 
 function memberSettings(member: string, writeMode: "direct" | "worktree"): string {
   const effort = member === "reviewer" ? "medium" : "high";
-  const mcpMode = member === "reviewer" ? "none" : "inherit";
+  const mcpMode = member === "reviewer" ? "none" : "isolated";
+  const mcpTeam = member === "reviewer" ? "[]" : "[\"cofounder\"]";
   return `model = "gpt-5.5"
 sandbox = "workspace-write"
 approval = "never"
@@ -257,7 +275,14 @@ mode = "${writeMode}"
 
 [mcp]
 mode = "${mcpMode}"
-allow = []
+from_main = []
+team = ${mcpTeam}
+
+[skills]
+mode = "isolated"
+from_project = []
+from_main = []
+team = []
 
 [memory]
 project = true

@@ -21,11 +21,11 @@ export function formatCodexSetup(options: CodexSetupOptions = {}): string {
 
 Preferred from npm registry:
 
-  codex mcp add cofounder -- npx -y --package ${packageName} -- cofounder mcp
+  codex mcp add cofounder -- npx -y --package ${packageName} -- cofounder serve mcp
 
 After npm link or global install:
 
-  codex mcp add cofounder -- cofounder mcp
+  codex mcp add cofounder -- cofounder serve mcp
 
 Direct checkout fallback after npm run build:
 
@@ -40,8 +40,11 @@ Then open Codex from a configured project:
 
 export async function installCodexMcp(options: CodexSetupOptions = {}): Promise<string> {
   const packageName = options.packageName ?? DEFAULT_PUBLISHED_PACKAGE;
-  const args = ["mcp", "add", "cofounder", "--", "npx", "-y", "--package", packageName, "--", "cofounder", "mcp"];
+  const args = ["mcp", "add", "cofounder", "--", "npx", "-y", "--package", packageName, "--", "cofounder", "serve", "mcp"];
   try {
+    await execFileAsync("codex", ["mcp", "remove", "cofounder"], {
+      maxBuffer: 10 * 1024 * 1024
+    }).catch(() => undefined);
     await execFileAsync("codex", args, {
       maxBuffer: 10 * 1024 * 1024
     });

@@ -97,7 +97,11 @@ export async function runMember(
     member_codex_config_path: runtime.member_codex_config_path,
     work_mode: workMode
   }, prompt);
-  return await runCodexTask(record, runtime.member, runtime.settings, { streamToConsole: options.streamToConsole, codexConfig: runtime.codex_config });
+  return await runCodexTask(record, runtime.member, runtime.settings, {
+    streamToConsole: options.streamToConsole,
+    codexConfig: runtime.codex_config,
+    skills: runtime.skills
+  });
 }
 
 export async function delegateMember(
@@ -134,7 +138,10 @@ export async function runWorkerTask(taskId: string, startDir = process.cwd()): P
   const task = await readTask(project.projectRoot, taskId);
   const member = getMember(project, task.assignee);
   const runtime = await prepareMemberRuntime(project, member);
-  return await runCodexTask(task, runtime.member, runtime.settings, { codexConfig: runtime.codex_config });
+  return await runCodexTask(task, runtime.member, runtime.settings, {
+    codexConfig: runtime.codex_config,
+    skills: runtime.skills
+  });
 }
 
 export async function getTask(taskId: string, startDir = process.cwd()): Promise<TaskRecord> {
