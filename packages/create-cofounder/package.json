@@ -1,7 +1,16 @@
 {
   "name": "create-cofounder",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Initializer for Cofounder Crew projects",
+  "keywords": [
+    "codex",
+    "ai-agents",
+    "mcp",
+    "local-first",
+    "developer-tools",
+    "cli",
+    "multi-agent"
+  ],
   "homepage": "https://github.com/eugeneyvt/cofounder-crew#readme",
   "bugs": {
     "url": "https://github.com/eugeneyvt/cofounder-crew/issues"
@@ -11,6 +20,7 @@
     "url": "git+https://github.com/eugeneyvt/cofounder-crew.git",
     "directory": "packages/create-cofounder"
   },
+  "license": "MIT",
   "type": "module",
   "bin": {
     "create-cofounder": "index.js"

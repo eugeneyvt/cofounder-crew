@@ -1,7 +1,16 @@
 {
   "name": "cofounder-crew",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Codex-backed local team runtime",
+  "keywords": [
+    "codex",
+    "ai-agents",
+    "mcp",
+    "local-first",
+    "developer-tools",
+    "cli",
+    "multi-agent"
+  ],
   "homepage": "https://github.com/eugeneyvt/cofounder-crew#readme",
   "bugs": {
     "url": "https://github.com/eugeneyvt/cofounder-crew/issues"
@@ -10,6 +19,7 @@
     "type": "git",
     "url": "git+https://github.com/eugeneyvt/cofounder-crew.git"
   },
+  "license": "MIT",
   "type": "module",
   "files": [
     "dist/src",
