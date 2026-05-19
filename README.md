@@ -1,21 +1,18 @@
-<p align="center">
-  <h1 align="center">Cofounder Crew</h1>
-  <p align="center">
+<div align="center">
+  <h1>Cofounder Crew</h1>
+  <p>
     Conversation-first local AI teams for Codex.
     <br />
     No dashboard. No orchestration server. No new IDE.
   </p>
-</p>
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/create-cofounder"><img alt="create-cofounder npm version" src="https://img.shields.io/npm/v/create-cofounder?label=create-cofounder"></a>
-  <a href="https://www.npmjs.com/package/cofounder-crew"><img alt="cofounder-crew npm version" src="https://img.shields.io/npm/v/cofounder-crew?label=cofounder-crew"></a>
-  <img alt="Node.js >=22" src="https://img.shields.io/badge/node-%3E%3D22-339933">
-  <img alt="Codex first" src="https://img.shields.io/badge/interface-Codex-111827">
-  <img alt="MCP enabled" src="https://img.shields.io/badge/MCP-enabled-4f46e5">
-</p>
-
-<p align="center">
+  <p>
+    <a href="https://www.npmjs.com/package/create-cofounder"><img src="https://img.shields.io/npm/v/create-cofounder?label=create-cofounder" alt="create-cofounder npm version" /></a>
+    <a href="https://www.npmjs.com/package/cofounder-crew"><img src="https://img.shields.io/npm/v/cofounder-crew?label=cofounder-crew" alt="cofounder-crew npm version" /></a>
+    <img src="https://img.shields.io/badge/node-22%2B-339933" alt="Node.js 22+" />
+    <img src="https://img.shields.io/badge/interface-Codex-111827" alt="Codex first" />
+    <img src="https://img.shields.io/badge/MCP-enabled-4f46e5" alt="MCP enabled" />
+  </p>
+  <p>
   <a href="#quickstart">Quickstart</a>
   ·
   <a href="#how-it-feels">How It Feels</a>
@@ -25,7 +22,8 @@
   <a href="#configuration">Configuration</a>
   ·
   <a href="#scriptable-fallback">CLI Fallback</a>
-</p>
+  </p>
+</div>
 
 ## Why
 
