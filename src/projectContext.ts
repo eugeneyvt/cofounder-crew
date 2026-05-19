@@ -67,7 +67,7 @@ export function deriveProjectInstructionsFromAgents(content: string): string | n
   const projectDocMarker = "--- project-doc ---";
   const markerIndex = content.indexOf(projectDocMarker);
   const scoped = markerIndex === -1 ? content : content.slice(markerIndex + projectDocMarker.length);
-  const stripped = stripMarkdownSection(scoped, "Cofounder Crew")
+  const stripped = stripCofounderOrchestration(scoped)
     .replace(/^<INSTRUCTIONS>\s*/i, "")
     .replace(/\s*<\/INSTRUCTIONS>\s*$/i, "")
     .trim();
@@ -109,29 +109,79 @@ async function readProjectContextFile(
   };
 }
 
-function stripMarkdownSection(content: string, title: string): string {
+function stripCofounderOrchestration(content: string): string {
   const lines = content.split(/\r?\n/);
   const result: string[] = [];
+  const generatedDoc = /^\s*#\s+Cofounder Crew\s*$/im.test(content);
+  const generatedSectionTitles = new Set([
+    "your role",
+    "orchestration workflow",
+    "team configuration",
+    "if cofounder tools are missing"
+  ]);
+  let cofounderLevel: number | null = null;
+  let stripIntro = false;
   let skipLevel: number | null = null;
 
   for (const line of lines) {
     const heading = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
+    if (skipLevel !== null) {
+      if (!heading) {
+        continue;
+      }
+
+      const level = heading[1].length;
+      if (level > skipLevel) {
+        continue;
+      }
+
+      skipLevel = null;
+    }
+
     if (heading) {
       const level = heading[1].length;
       const headingTitle = heading[2].trim().toLowerCase();
-      if (skipLevel !== null && level <= skipLevel) {
-        skipLevel = null;
-      }
-      if (headingTitle === title.toLowerCase()) {
-        skipLevel = level;
+
+      if (headingTitle === "cofounder crew") {
+        cofounderLevel = level;
+        stripIntro = true;
         continue;
+      }
+
+      if (generatedDoc && cofounderLevel === 1 && level > cofounderLevel && generatedSectionTitles.has(headingTitle)) {
+        skipLevel = level;
+        stripIntro = false;
+        continue;
+      }
+
+      if (cofounderLevel !== null && level <= cofounderLevel) {
+        cofounderLevel = null;
+        stripIntro = false;
       }
     }
 
-    if (skipLevel === null) {
-      result.push(line);
+    if (stripIntro) {
+      if (line.trim().length === 0 || isCofounderBridgeLine(line)) {
+        continue;
+      }
+      stripIntro = false;
     }
+
+    result.push(line);
   }
 
   return result.join("\n");
+}
+
+function isCofounderBridgeLine(line: string): boolean {
+  const normalized = line.trim().toLowerCase();
+  return (
+    normalized.includes("this project uses cofounder crew") ||
+    normalized.includes("cofounder/orchestrator") ||
+    normalized.includes("cofounder mcp tools") ||
+    normalized.includes(".cofounder/codex-instructions.md") ||
+    normalized.includes("proactively delegate") ||
+    normalized.includes("do not perform specialist work yourself") ||
+    normalized.includes("coordinate the work")
+  );
 }

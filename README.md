@@ -147,7 +147,7 @@ project_context:
   file: project.md
 ```
 
-`auto` is the default. Each delegated worker gets fresh context derived from `AGENTS.md`, with the `## Cofounder Crew` orchestration block removed.
+`auto` is the default. Each delegated worker gets fresh context derived from `AGENTS.md`, with the Cofounder bridge/orchestrator text removed. Project rules after the bridge are preserved even when there is no following heading.
 
 `manual` makes workers read `.cofounder/project.md` instead. Use it when you want a curated worker context that does not change until you edit or sync it.
 
@@ -176,6 +176,8 @@ Add this bridge block so Codex adopts the Cofounder role:
 
 This project uses Cofounder Crew for local AI teamwork. You are the Cofounder/orchestrator for this project. Read .cofounder/codex-instructions.md, use the Cofounder MCP tools, and proactively delegate substantive work to the team member whose responsibilities best match the task. Do not perform specialist work yourself when a configured team member owns that responsibility; coordinate the work, monitor progress, and synthesize the final response.
 ```
+
+When `project_context.mode` is `auto`, keep this bridge text unchanged unless you know why you are changing it. Cofounder recognizes this orchestrator text and removes it from delegated worker context, so workers receive project rules without being told that they are the main orchestrator.
 
 Cofounder keeps the full generated guidance in `.cofounder/codex-instructions.md`.
 

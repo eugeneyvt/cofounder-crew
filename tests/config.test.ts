@@ -8,7 +8,7 @@ import { getMember, loadMemberSettings, loadProject } from "../src/config.js";
 import { initProject, syncProjectInstructions } from "../src/init.js";
 import { deriveProjectInstructionsFromAgents } from "../src/projectContext.js";
 import { formatCodexSetup } from "../src/setup.js";
-import { listProjectTemplates } from "../src/templates.js";
+import { EXISTING_AGENTS_APPEND_SNIPPET, listProjectTemplates } from "../src/templates.js";
 
 test("init creates a loadable Codex team", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-config-"));
@@ -136,6 +136,24 @@ You are the Cofounder/orchestrator.
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test("project instruction derivation preserves rules after a trailing Cofounder bridge", () => {
+  const derived = deriveProjectInstructionsFromAgents(`# Project Rules
+
+Use npm.
+
+${EXISTING_AGENTS_APPEND_SNIPPET}
+
+- Run npm test before reporting done.
+- Keep changes small.
+`);
+
+  assert.match(derived ?? "", /Use npm/);
+  assert.match(derived ?? "", /Run npm test before reporting done/);
+  assert.match(derived ?? "", /Keep changes small/);
+  assert.doesNotMatch(derived ?? "", /Cofounder\/orchestrator/);
+  assert.doesNotMatch(derived ?? "", /proactively delegate substantive work/);
 });
 
 test("templates and Codex setup helpers are inspectable", async () => {
