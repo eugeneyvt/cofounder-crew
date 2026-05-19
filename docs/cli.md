@@ -15,7 +15,13 @@ cofounder help skill
 cofounder help task
 ```
 
-If the package is not installed locally, prefix commands with:
+The default install is global:
+
+```bash
+npm install -g cofounder-crew@latest
+```
+
+If the global command is not available, prefix commands with:
 
 ```bash
 npx -y --package cofounder-crew -- cofounder
@@ -27,14 +33,20 @@ npx -y --package cofounder-crew -- cofounder
 cofounder start
 cofounder start --template worktree --setup-codex --yes
 cofounder doctor
-cofounder update --setup-codex --yes
+cofounder update --yes
+cofounder pin
+cofounder self update
 ```
 
 `start` initializes missing project files, checks the local setup, optionally installs the Codex MCP entry, and prints next steps.
 
 `doctor` checks Node, npm, Codex, Git, `.cofounder/`, `AGENTS.md`, team config, runtime ignores, and the Codex MCP entry.
 
-`update` updates the local `cofounder-crew` dependency when one exists, optionally repairs the Codex MCP entry, and runs doctor.
+`update` repairs the Codex MCP entry by default and runs doctor for the current project. Use `--no-setup-codex` to skip MCP repair.
+
+`pin` adds or updates `cofounder-crew` as a project-local dev dependency. This is optional and mainly useful when a repo wants to record a fixed Cofounder runtime.
+
+`self update` updates the globally installed `cofounder` command.
 
 ## Team
 

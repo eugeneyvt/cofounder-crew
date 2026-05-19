@@ -48,7 +48,7 @@ Set up Cofounder Crew in this project and explain each meaningful action as you 
 Use https://github.com/eugeneyvt/cofounder-crew as the reference if you need more context. Work from the current project cwd. Do not commit, push, publish, or overwrite existing AGENTS.md or .cofounder files without asking.
 
 Goal:
-- install the current Cofounder npm package when this project has package.json
+- make the global cofounder command available
 - initialize or repair the project-local Cofounder setup
 - install or repair the Codex MCP entry
 - verify the setup
@@ -61,6 +61,7 @@ Process:
    - current cwd
    - node --version and npm --version
    - codex --version
+   - whether command -v cofounder succeeds
    - whether package.json exists
    - whether package.json already contains cofounder-crew in dependencies or devDependencies
    - whether .cofounder/team.yaml exists
@@ -71,23 +72,19 @@ Process:
    - whether Codex MCP server "cofounder" exists and points to:
      npx -y --package cofounder-crew -- cofounder serve mcp
 
-2. Install the package before using the local CLI when package.json exists.
-   - If package.json exists, run:
-     npm install --save-dev cofounder-crew@latest
-   - If package.json does not exist, do not create package.json just for Cofounder. Use npm create or npx with --package instead.
-   - Do not install Cofounder globally.
-   - If npx cofounder cannot resolve after install, use:
+2. Install the global CLI when needed.
+   - If command -v cofounder fails, run:
+     npm install -g cofounder-crew@latest
+   - Do not add cofounder-crew to package.json unless I explicitly ask for project-local pinning.
+   - If global install fails or is not allowed, use the one-off npm runner:
      npx -y --package cofounder-crew@latest -- cofounder <command>
+     and substitute that prefix for `cofounder` in the commands below.
 
 3. Initialize or repair with the CLI.
-   - If .cofounder/team.yaml is missing and package.json exists, run:
-     npx cofounder start --setup-codex --yes
-   - If .cofounder/team.yaml is missing and package.json does not exist, run:
-     npm create cofounder@latest -- --setup-codex --yes
+   - If .cofounder/team.yaml is missing, run:
+     cofounder start --setup-codex --yes
    - If .cofounder/team.yaml already exists, do not re-run init. Run the safe updater instead:
-     npx cofounder update --setup-codex --yes
-     or, without a local dependency:
-     npx -y --package cofounder-crew@latest -- cofounder update --setup-codex --yes
+     cofounder update --yes
    - Use --template worktree only if I explicitly asked for isolated worktrees or this repo clearly already uses that workflow. Worktree mode requires a Git repo with at least one commit.
 
 4. Preserve user-owned files.
@@ -98,13 +95,14 @@ Process:
 
 5. Verify before claiming success.
    Run:
-   - npx cofounder doctor
+   - cofounder doctor
    - codex mcp get cofounder, if Codex CLI is available
-   - npm ls cofounder-crew --depth=0, if package.json exists
+   - npm ls -g cofounder-crew --depth=0, if global npm installs are available
+   - npm ls cofounder-crew --depth=0 only if the project is intentionally pinned
 
 6. Final response format.
    Tell me:
-   - what package/version is installed or selected
+   - whether Cofounder is available globally or via the one-off npm runner
    - which files were created or changed
    - whether AGENTS.md needs a manual bridge block
    - whether I need to restart Codex
@@ -123,24 +121,25 @@ If a verification step fails, do not say the setup is complete. Explain the fail
 
 The same prompt is available at [docs/prompts/bootstrap-codex.md](https://github.com/eugeneyvt/cofounder-crew/blob/main/docs/prompts/bootstrap-codex.md).
 
-Terminal setup is one command, then open Codex:
+Terminal setup:
 
 ```bash
+npm install -g cofounder-crew@latest
 cd my-project
-npm create cofounder@latest -- --setup-codex
+cofounder start --setup-codex
 codex
 ```
 
 For non-interactive setup:
 
 ```bash
-npm create cofounder@latest -- --setup-codex --yes
+cofounder start --setup-codex --yes
 ```
 
 For isolated implementation tasks, use the worktree template. It requires a Git repo with at least one commit:
 
 ```bash
-npm create cofounder@latest -- --template worktree --setup-codex
+cofounder start --template worktree --setup-codex
 codex
 ```
 
@@ -221,9 +220,9 @@ The primary Codex session reads the Cofounder instructions and uses MCP tools to
 The guided flow covers the common edits:
 
 ```bash
-npx -y --package cofounder-crew -- cofounder start
-npx -y --package cofounder-crew -- cofounder add
-npx -y --package cofounder-crew -- cofounder doctor
+cofounder start
+cofounder add
+cofounder doctor
 ```
 
 Deterministic commands are available for agents and scripts:
@@ -237,7 +236,7 @@ cofounder context mode manual
 cofounder context sync
 ```
 
-If the runtime is not installed locally, prefix commands with `npx -y --package cofounder-crew -- cofounder`.
+If the global command is not available, prefix commands with `npx -y --package cofounder-crew -- cofounder`.
 
 Project skills live in `.agents/skills/` and can also be assigned to teammates. Team-only skills live in `.cofounder/skills/` and are only linked into selected member runtimes.
 
@@ -248,10 +247,28 @@ Common recipes are in [docs/examples.md](https://github.com/eugeneyvt/cofounder-
 Safe project update:
 
 ```bash
-npx -y --package cofounder-crew@latest -- cofounder update --setup-codex --yes
+cofounder update
 ```
 
-Cofounder update flows should preserve existing `.cofounder/`, member prompts/settings, memory, MCP config, and `AGENTS.md`. If runtime ignore entries are missing, Cofounder should report the recommendation instead of changing your Git ignore rules automatically.
+If the global command is not available, use the one-off npm runner:
+
+```bash
+npx -y --package cofounder-crew@latest -- cofounder update --yes
+```
+
+`cofounder update` repairs the Codex MCP entry, runs doctor, and preserves existing `.cofounder/`, member prompts/settings, memory, MCP config, `package.json`, and `AGENTS.md`. Skip MCP repair with `cofounder update --no-setup-codex`.
+
+Update the global CLI itself:
+
+```bash
+cofounder self update
+```
+
+Project-local pinning is optional:
+
+```bash
+cofounder pin
+```
 
 ## Docs
 
@@ -278,6 +295,19 @@ Cofounder update flows should preserve existing `.cofounder/`, member prompts/se
 - npm
 - Codex CLI
 - Git with at least one commit when using worktree mode
+
+## Contributing
+
+Local development quick start:
+
+```bash
+npm install
+npm run check
+npm test
+npm run build
+```
+
+Before opening a pull request, read [CONTRIBUTING.md](https://github.com/eugeneyvt/cofounder-crew/blob/main/CONTRIBUTING.md) and the [Code of Conduct](https://github.com/eugeneyvt/cofounder-crew/blob/main/CODE_OF_CONDUCT.md). Report vulnerabilities through the [Security Policy](https://github.com/eugeneyvt/cofounder-crew/blob/main/SECURITY.md), not public issues.
 
 ## Support
 

@@ -24,9 +24,10 @@ Help me add or adjust a Cofounder teammate.
 For CLI onboarding and edits, use:
 
 ```bash
-npx -y --package cofounder-crew -- cofounder start
-npx -y --package cofounder-crew -- cofounder add
-npx -y --package cofounder-crew -- cofounder doctor
+npm install -g cofounder-crew@latest
+cofounder start
+cofounder add
+cofounder doctor
 ```
 
 The `worktree` template requires a Git repository with at least one commit before delegated tasks can run in isolated worktrees.

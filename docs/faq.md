@@ -67,11 +67,13 @@ The MCP entry usually runs:
 npx -y --package cofounder-crew -- cofounder serve mcp
 ```
 
-That means new Codex sessions resolve the package from npm unless your environment has a cache. Projects with a local dev dependency can pin and update with:
+That means new Codex sessions resolve the MCP runtime from npm unless your environment has a cache. The global CLI is updated separately:
 
 ```bash
-npx -y --package cofounder-crew@latest -- cofounder update --setup-codex --yes
+cofounder self update
 ```
+
+Project-local pinning is optional. Add or update it with `cofounder pin` only when the repo should record a Cofounder package dependency.
 
 Restart Codex after changing MCP configuration.
 
