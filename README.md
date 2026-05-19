@@ -51,7 +51,7 @@ Before changing anything, inspect:
 
 Then choose the smallest safe setup:
 - If .cofounder/ is missing, initialize Cofounder. Use the worktree template only when the repo has at least one commit; otherwise use the default template.
-- If .cofounder/ already exists, do not reinitialize it. Verify the files and report the project_context mode.
+- If .cofounder/ already exists, do not reinitialize it. Verify the files, report the project_context mode, and make sure .cofounder/.gitignore ignores runs/, worktrees/, and members/*/home/.
 - Keep project_context.mode as auto unless I ask for a manually curated .cofounder/project.md.
 - If this project has package.json, prefer a dev dependency install. Otherwise use npm create.
 - Install or repair the Codex MCP entry only if it is missing or wrong.
@@ -163,7 +163,7 @@ Refresh the manual snapshot with:
 npx cofounder sync project
 ```
 
-Generated task logs and worktrees are ignored by `.cofounder/.gitignore`.
+Generated task logs, worktrees, and member runtime home files are ignored by `.cofounder/.gitignore`.
 
 ## Existing AGENTS.md
 
@@ -280,7 +280,8 @@ Inspect first:
 - Whether this project has cofounder-crew in package.json.
 - The installed project version with `npm ls cofounder-crew --depth=0` when package.json exists.
 - Whether Codex MCP server "cofounder" exists and points at `npx -y --package cofounder-crew -- cofounder mcp`.
-- Whether .cofounder/team.yaml, project_context mode, member prompts/settings, .cofounder/.gitignore, and .cofounder/project.md exist.
+- Whether .cofounder/team.yaml, project_context mode, member prompts/settings, .cofounder/project.md, and .cofounder/.gitignore exist.
+- Whether .cofounder/.gitignore ignores runs/, worktrees/, and members/*/home/.
 - Whether AGENTS.md contains the Cofounder bridge block.
 
 Then update safely:
@@ -288,6 +289,7 @@ Then update safely:
 - If MCP is missing or wrong, repair it.
 - Do not re-run init over an existing .cofounder/.
 - Do not overwrite team prompts, settings, memory, or AGENTS.md.
+- If .cofounder/.gitignore is missing entries, add only the missing entries for runs/, worktrees/, and members/*/home/.
 - If project_context mode is manual, run `cofounder sync project` if you want to refresh .cofounder/project.md from AGENTS.md.
 - If generated instructions changed, show me any bridge/config changes to apply manually.
 - If MCP changed, tell me to restart Codex from this project directory.
@@ -299,6 +301,12 @@ Manual update commands:
 
 ```bash
 npm install --save-dev cofounder-crew@latest
+
+# Ensure generated runtime artifacts stay out of git diffs:
+touch .cofounder/.gitignore
+grep -qxF 'runs/' .cofounder/.gitignore || printf 'runs/\n' >> .cofounder/.gitignore
+grep -qxF 'worktrees/' .cofounder/.gitignore || printf 'worktrees/\n' >> .cofounder/.gitignore
+grep -qxF 'members/*/home/' .cofounder/.gitignore || printf 'members/*/home/\n' >> .cofounder/.gitignore
 
 # Optional when project_context.mode is manual:
 npx cofounder sync project

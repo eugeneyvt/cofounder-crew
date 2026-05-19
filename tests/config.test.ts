@@ -41,6 +41,7 @@ test("init creates a loadable Codex team", async () => {
     assert.equal(codexInstructions, agents);
     assert.match(cofounderGitignore, /^runs\/$/m);
     assert.match(cofounderGitignore, /^worktrees\/$/m);
+    assert.match(cofounderGitignore, /^members\/\*\/home\/$/m);
     assert.match(projectInstructions, /Shared Project Instructions/);
     assert.match(projectInstructions, /cofounder sync project/);
   } finally {
