@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -16,6 +16,7 @@ test("CLI help is namespaced and omits removed top-level task aliases", async ()
 
   assert.match(stdout, /cofounder start/);
   assert.match(stdout, /cofounder add\s+Interactive shortcut/);
+  assert.match(stdout, /cofounder pin\s+Pin Cofounder as a project-local dev dependency/);
   assert.match(stdout, /cofounder task delegate\s+Start an async member task/);
   assert.match(stdout, /cofounder mcp add/);
   assert.doesNotMatch(stdout, /cofounder delegate <member>/);
@@ -79,3 +80,104 @@ test("CLI can add members, MCP servers, and scoped skills", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("cofounder update repairs Codex MCP without changing project dependencies", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-update-"));
+  try {
+    await initProject(dir);
+    await writeFile(
+      path.join(dir, "package.json"),
+      JSON.stringify({ devDependencies: {} }, null, 2),
+      "utf8"
+    );
+
+    const fake = await makeFakeToolchain(dir);
+    const { stdout } = await execFileAsync(cli, [...cliArgs, "update", "--yes"], {
+      cwd: dir,
+      env: fake.env
+    });
+
+    const npmLog = await readFile(fake.npmLog, "utf8");
+    const codexLog = await readFile(fake.codexLog, "utf8");
+
+    assert.match(stdout, /Update Cofounder/);
+    assert.doesNotMatch(npmLog, /npm install/);
+    assert.match(codexLog, /codex mcp remove cofounder/);
+    assert.match(codexLog, /codex mcp add cofounder -- npx -y --package cofounder-crew -- cofounder serve mcp/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("cofounder pin adds or updates the project-local package pin", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-pin-"));
+  try {
+    await initProject(dir);
+    await writeFile(path.join(dir, "package.json"), JSON.stringify({ devDependencies: {} }, null, 2), "utf8");
+
+    const fake = await makeFakeToolchain(dir);
+    await execFileAsync(cli, [...cliArgs, "pin", "--yes"], {
+      cwd: dir,
+      env: fake.env
+    });
+
+    const npmLog = await readFile(fake.npmLog, "utf8");
+    assert.match(npmLog, /npm install --save-dev cofounder-crew@latest/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("cofounder self update updates the global CLI installation", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-self-update-"));
+  try {
+    const fake = await makeFakeToolchain(dir);
+    await execFileAsync(cli, [...cliArgs, "self", "update"], {
+      cwd: dir,
+      env: fake.env
+    });
+
+    const npmLog = await readFile(fake.npmLog, "utf8");
+    assert.equal((npmLog.match(/npm install -g cofounder-crew@latest/g) ?? []).length, 1);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+async function makeFakeToolchain(dir: string): Promise<{ env: NodeJS.ProcessEnv; npmLog: string; codexLog: string }> {
+  const binDir = path.join(dir, "bin");
+  const npmLog = path.join(dir, "npm.log");
+  const codexLog = path.join(dir, "codex.log");
+  await mkdir(binDir, { recursive: true });
+  await writeFile(path.join(binDir, "npm"), `#!/usr/bin/env sh
+printf 'npm %s\\n' "$*" >> "$FAKE_NPM_LOG"
+if [ "$1" = "--version" ]; then
+  echo "10.0.0"
+fi
+exit 0
+`, "utf8");
+  await writeFile(path.join(binDir, "codex"), `#!/usr/bin/env sh
+printf 'codex %s\\n' "$*" >> "$FAKE_CODEX_LOG"
+if [ "$1" = "--version" ]; then
+  echo "codex 0.0.0-test"
+  exit 0
+fi
+if [ "$1" = "mcp" ] && [ "$2" = "get" ]; then
+  echo "command: npx -y --package cofounder-crew -- cofounder serve mcp"
+  exit 0
+fi
+exit 0
+`, "utf8");
+  await chmod(path.join(binDir, "npm"), 0o755);
+  await chmod(path.join(binDir, "codex"), 0o755);
+  return {
+    npmLog,
+    codexLog,
+    env: {
+      ...process.env,
+      FAKE_NPM_LOG: npmLog,
+      FAKE_CODEX_LOG: codexLog,
+      PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ""}`
+    }
+  };
+}
