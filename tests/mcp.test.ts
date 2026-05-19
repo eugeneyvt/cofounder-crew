@@ -34,7 +34,9 @@ test("MCP server exposes team tools over stdio", async () => {
       "team.interrupt",
       "team.list",
       "team.logs",
-      "team.status"
+      "team.result",
+      "team.status",
+      "team.wait"
     ]);
 
     const result = await client.callTool({
@@ -92,6 +94,30 @@ test("MCP team.delegate starts a delegated Codex task", async () => {
 
     const statusText = await pollTaskStatus(client, payload.task_id);
     assert.match(statusText, /succeeded/);
+
+    const waitResult = await client.callTool({
+      name: "team.wait",
+      arguments: {
+        task_id: payload.task_id,
+        timeout_ms: 5_000
+      }
+    });
+    const waitPayload = JSON.parse(textContent(waitResult)) as { status: string; result: string; result_empty: boolean; timed_out: boolean };
+    assert.equal(waitPayload.status, "succeeded");
+    assert.equal(waitPayload.result, "fake result\n");
+    assert.equal(waitPayload.result_empty, false);
+    assert.equal(waitPayload.timed_out, false);
+
+    const resultResult = await client.callTool({
+      name: "team.result",
+      arguments: {
+        task_id: payload.task_id
+      }
+    });
+    const resultPayload = JSON.parse(textContent(resultResult)) as { status: string; result: string; result_empty: boolean };
+    assert.equal(resultPayload.status, "succeeded");
+    assert.equal(resultPayload.result, "fake result\n");
+    assert.equal(resultPayload.result_empty, false);
 
     const logsResult = await client.callTool({
       name: "team.logs",

@@ -11,14 +11,17 @@ import {
   cancelTask,
   delegateMember,
   formatLogEntry,
+  formatTaskResultPayload,
   formatTaskStatus,
   formatTeam,
   getCapabilities,
+  getTaskResultView,
   getTask,
   interruptTask,
   listTeam,
   readTaskPatch,
-  readTaskLogs
+  readTaskLogs,
+  waitForTaskResult
 } from "./runtime.js";
 
 export function createCofounderMcpServer(): McpServer {
@@ -52,7 +55,7 @@ function registerTools(server: McpServer): void {
     "team.delegate",
     {
       title: "Delegate task",
-      description: "Delegate a task to a Codex-backed team member.",
+      description: "Start an async task for a Codex-backed team member. Use team.wait or team.result before treating the delegated work as complete.",
       inputSchema: {
         assignee: z.string().min(1),
         task: z.string().min(1),
@@ -70,6 +73,47 @@ function registerTools(server: McpServer): void {
         result_path: record.result_path,
         events_path: record.events_path
       });
+    }
+  );
+
+  server.registerTool(
+    "team.wait",
+    {
+      title: "Wait for task result",
+      description: "Wait until a delegated task finishes, fails, or times out, then return status, result text, and recent logs.",
+      inputSchema: {
+        task_id: z.string().min(1),
+        timeout_ms: z.number().int().positive().max(600_000).optional(),
+        poll_interval_ms: z.number().int().positive().max(10_000).optional(),
+        max_chars: z.number().int().positive().max(50_000).optional(),
+        tail: z.number().int().positive().max(500).optional()
+      }
+    },
+    async ({ task_id, timeout_ms, poll_interval_ms, max_chars, tail }) => {
+      const view = await waitForTaskResult(task_id, {
+        timeoutMs: timeout_ms,
+        pollIntervalMs: poll_interval_ms,
+        maxChars: max_chars,
+        tail
+      });
+      return jsonTextResult(formatTaskResultPayload(view));
+    }
+  );
+
+  server.registerTool(
+    "team.result",
+    {
+      title: "Read task result",
+      description: "Read a delegated task result with explicit empty/truncated flags and recent logs.",
+      inputSchema: {
+        task_id: z.string().min(1),
+        max_chars: z.number().int().positive().max(50_000).optional(),
+        tail: z.number().int().positive().max(500).optional()
+      }
+    },
+    async ({ task_id, max_chars, tail }) => {
+      const view = await getTaskResultView(task_id, { maxChars: max_chars, tail });
+      return jsonTextResult(formatTaskResultPayload(view));
     }
   );
 

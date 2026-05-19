@@ -132,6 +132,7 @@ When Cofounder is configured, generated project instructions tell Codex to:
 | Delegate proactively | Do not wait for the user to say "delegate" when a teammate owns the work. |
 | Respect responsibility boundaries | Do not perform specialist work yourself when a configured member matches the task. |
 | Keep tasks focused | Give each teammate the smallest useful slice of work. |
+| Wait for results | Use `team.wait` or `team.result`; empty, failed, cancelled, or timed-out tasks are not completed work. |
 | Inspect before applying | For worktree tasks, review the diff before applying it to the main tree. |
 
 The default generated `AGENTS.md` starts with:
@@ -250,6 +251,8 @@ Cofounder exposes the team runtime to Codex through MCP:
 | `team.list` | Read the roster and responsibility map. |
 | `team.capabilities` | Inspect what the runtime can do. |
 | `team.delegate` | Start a delegated task. |
+| `team.wait` | Wait for a task to finish and return result text plus recent logs. |
+| `team.result` | Read a task result with explicit empty/truncated flags. |
 | `team.status` | Check task status and metadata. |
 | `team.logs` | Read task events and logs. |
 | `team.diff` | Inspect a worktree task patch. |

@@ -40,6 +40,15 @@ export interface ApplyTaskResult {
   patch_path: string;
 }
 
+export interface TaskResultView {
+  task: TaskRecord;
+  result: string;
+  result_empty: boolean;
+  result_truncated: boolean;
+  timed_out: boolean;
+  recent_logs: LogEntry[];
+}
+
 export function getCapabilities(): RunnerCapabilities[] {
   return [CODEX_CAPABILITIES];
 }
@@ -154,6 +163,37 @@ export async function readTaskResult(taskId: string, startDir = process.cwd()): 
   const project = await loadProject(startDir);
   const task = await readTask(project.projectRoot, taskId);
   return await readFile(resolveTaskRecordPath(project.projectRoot, task, "result_path"), "utf8");
+}
+
+export async function getTaskResultView(
+  taskId: string,
+  options: { startDir?: string; maxChars?: number; tail?: number; timedOut?: boolean } = {}
+): Promise<TaskResultView> {
+  const project = await loadProject(options.startDir);
+  const task = await readTask(project.projectRoot, taskId);
+  return await buildTaskResultView(project.projectRoot, task, options);
+}
+
+export async function waitForTaskResult(
+  taskId: string,
+  options: { startDir?: string; timeoutMs?: number; pollIntervalMs?: number; maxChars?: number; tail?: number } = {}
+): Promise<TaskResultView> {
+  const project = await loadProject(options.startDir);
+  const timeoutMs = clampInt(options.timeoutMs ?? 120_000, 1, 600_000);
+  const pollIntervalMs = clampInt(options.pollIntervalMs ?? 1_000, 100, 10_000);
+  const deadline = Date.now() + timeoutMs;
+  let task = await readTask(project.projectRoot, taskId);
+
+  while (!isTerminalStatus(task.status) && Date.now() < deadline) {
+    await sleep(Math.min(pollIntervalMs, Math.max(0, deadline - Date.now())));
+    task = await readTask(project.projectRoot, taskId);
+  }
+
+  return await buildTaskResultView(project.projectRoot, task, {
+    maxChars: options.maxChars,
+    tail: options.tail,
+    timedOut: !isTerminalStatus(task.status)
+  });
 }
 
 export async function readTaskPatch(taskId: string, startDir = process.cwd()): Promise<string> {
@@ -345,6 +385,63 @@ ${message}
 export function formatLogEntry(entry: LogEntry): string {
   const message = entry.message ? ` ${entry.message.replace(/\n+$/g, "")}` : "";
   return `[${entry.time ?? "unknown"}] ${entry.type ?? "event"}${message}`;
+}
+
+export function formatTaskResultPayload(view: TaskResultView): Record<string, unknown> {
+  return {
+    task_id: view.task.id,
+    status: view.task.status,
+    assignee: view.task.assignee,
+    caller: view.task.caller,
+    exit_code: view.task.exit_code ?? null,
+    error: view.task.error ?? null,
+    timed_out: view.timed_out,
+    result_empty: view.result_empty,
+    result_truncated: view.result_truncated,
+    result_path: view.task.result_path,
+    events_path: view.task.events_path,
+    changed_files: view.task.changed_files,
+    new_changed_files: view.task.new_changed_files,
+    conflict_risk: view.task.conflict_risk,
+    result: view.result,
+    recent_events: view.recent_logs.map(formatLogEntry)
+  };
+}
+
+async function buildTaskResultView(
+  projectRoot: string,
+  task: TaskRecord,
+  options: { maxChars?: number; tail?: number; timedOut?: boolean }
+): Promise<TaskResultView> {
+  const rawResult = await readFile(resolveTaskRecordPath(projectRoot, task, "result_path"), "utf8");
+  const maxChars = clampInt(options.maxChars ?? 12_000, 1, 50_000);
+  const resultTruncated = rawResult.length > maxChars;
+  const result = resultTruncated ? rawResult.slice(0, maxChars) : rawResult;
+  const logs = await readTaskLogs(task.id, { startDir: projectRoot, tail: options.tail ?? 80 });
+
+  return {
+    task,
+    result,
+    result_empty: rawResult.trim().length === 0,
+    result_truncated: resultTruncated,
+    timed_out: options.timedOut === true,
+    recent_logs: logs
+  };
+}
+
+function isTerminalStatus(status: TaskRecord["status"]): boolean {
+  return ["succeeded", "failed", "cancelled"].includes(status);
+}
+
+function clampInt(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function formatTeam(summary: TeamSummary): string {
