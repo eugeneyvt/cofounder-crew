@@ -51,7 +51,7 @@ Before changing anything, inspect:
 
 Then choose the smallest safe setup:
 - If .cofounder/ is missing, initialize Cofounder. Use the worktree template only when the repo has at least one commit; otherwise use the default template.
-- If .cofounder/ already exists, do not reinitialize it. Verify the files, report the project_context mode, and make sure .cofounder/.gitignore ignores runs/, worktrees/, and members/*/home/.
+- If .cofounder/ already exists, do not reinitialize it. Verify the files, report the project_context mode, and report whether .cofounder/.gitignore ignores runs/, worktrees/, and members/*/home/. Do not change .cofounder/.gitignore unless I explicitly ask.
 - Keep project_context.mode as auto unless I ask for a manually curated .cofounder/project.md.
 - If this project has package.json, prefer a dev dependency install. Otherwise use npm create.
 - Install or repair the Codex MCP entry only if it is missing or wrong.
@@ -289,7 +289,7 @@ Then update safely:
 - If MCP is missing or wrong, repair it.
 - Do not re-run init over an existing .cofounder/.
 - Do not overwrite team prompts, settings, memory, or AGENTS.md.
-- If .cofounder/.gitignore is missing entries, add only the missing entries for runs/, worktrees/, and members/*/home/.
+- If .cofounder/.gitignore is missing entries, report the recommended entries but do not add them without explicit approval.
 - If project_context mode is manual, run `cofounder sync project` if you want to refresh .cofounder/project.md from AGENTS.md.
 - If generated instructions changed, show me any bridge/config changes to apply manually.
 - If MCP changed, tell me to restart Codex from this project directory.
@@ -302,11 +302,8 @@ Manual update commands:
 ```bash
 npm install --save-dev cofounder-crew@latest
 
-# Ensure generated runtime artifacts stay out of git diffs:
-touch .cofounder/.gitignore
-grep -qxF 'runs/' .cofounder/.gitignore || printf 'runs/\n' >> .cofounder/.gitignore
-grep -qxF 'worktrees/' .cofounder/.gitignore || printf 'worktrees/\n' >> .cofounder/.gitignore
-grep -qxF 'members/*/home/' .cofounder/.gitignore || printf 'members/*/home/\n' >> .cofounder/.gitignore
+# Optional: inspect recommended runtime ignore entries without changing files.
+printf "runs/\nworktrees/\nmembers/*/home/\n"
 
 # Optional when project_context.mode is manual:
 npx cofounder sync project
