@@ -21,6 +21,8 @@
   ·
   <a href="#configuration">Configuration</a>
   ·
+  <a href="#updating">Updating</a>
+  ·
   <a href="#scriptable-fallback">CLI Fallback</a>
   </p>
 </div>
@@ -263,6 +265,52 @@ codex mcp add cofounder -- npx -y --package cofounder-crew -- cofounder mcp
 | `worktree` | Runs implementation work in `.cofounder/worktrees/<task_id>`. | You want isolated edits that Codex can inspect before applying. |
 
 Worktree mode creates worktrees from `HEAD`; uncommitted main-tree changes are not copied.
+
+## Updating
+
+Paste this into Codex from the project you want to update:
+
+```text
+Update Cofounder Crew for this computer and this project.
+
+First inspect the current state before changing anything:
+- Check the latest npm versions with `npm view cofounder-crew version` and `npm view create-cofounder version`.
+- Check whether this project has package.json and whether cofounder-crew is installed as a dependency or dev dependency.
+- Check the installed project version with `npm ls cofounder-crew --depth=0` if package.json exists.
+- Check whether the Codex MCP server named "cofounder" exists with `codex mcp get cofounder`.
+- Check whether the MCP command points at `npx -y --package cofounder-crew -- cofounder mcp`.
+- Check whether .cofounder/ exists and inspect .cofounder/team.yaml plus member settings.
+- Check whether AGENTS.md contains the Cofounder bridge block, or whether .cofounder/codex-instructions.md exists.
+
+Then choose the smallest safe update:
+- If cofounder-crew is installed in package.json, update it with npm and keep package-lock.json consistent.
+- If this project does not install cofounder-crew locally, do not add it just for an update unless there is a project reason; the MCP npx command can use the latest package.
+- If the MCP entry is missing or uses an old command, repair it to `codex mcp add cofounder -- npx -y --package cofounder-crew -- cofounder mcp`.
+- Do not re-run project init unless .cofounder/ is missing.
+- Do not overwrite existing team prompts, settings, memory, or AGENTS.md.
+- If generated instructions changed, show me the bridge block or config changes to apply manually.
+- If MCP changed, tell me to restart Codex from this project directory.
+
+After updating, summarize the old versions, new versions, changed files, and anything I still need to do manually.
+```
+
+Manual update commands:
+
+```bash
+# If this project has cofounder-crew in package.json:
+npm install --save-dev cofounder-crew@latest
+
+# Ensure Codex uses the registry-backed MCP command:
+codex mcp remove cofounder
+codex mcp add cofounder -- npx -y --package cofounder-crew -- cofounder mcp
+
+# Verify what npm and Codex see:
+npm view cofounder-crew version
+npm ls cofounder-crew --depth=0
+codex mcp get cofounder
+```
+
+Do not run `cofounder init` as an update command for an existing `.cofounder/` directory. Cofounder config is intentionally plain files; update prompts, roles, settings, and memory deliberately.
 
 ## Scriptable Fallback
 
