@@ -1,9 +1,9 @@
 <div align="center">
-  <img src="assets/cofounder_crew_social.png" alt="Cofounder Crew - Local AI teams for your repo." />
+  <img src="https://raw.githubusercontent.com/eugeneyvt/cofounder-crew/main/assets/cofounder_crew_social.png" alt="Cofounder Crew - local AI teams for Codex." />
   <br />
   <h1>Cofounder Crew</h1>
   <p>
-    Conversation-first local AI teams for Codex.
+    Turn one Codex session into a local AI team for your repo.
     <br />
     No dashboard. No orchestration server. No new IDE.
   </p>
@@ -17,369 +17,272 @@
   <p>
     <a href="#quickstart">Quickstart</a>
     ·
-    <a href="#using-the-team">Using The Team</a>
+    <a href="#why-it-exists">Why</a>
     ·
-    <a href="#configuration">Configuration</a>
+    <a href="#how-it-works">How It Works</a>
     ·
-    <a href="#updating">Updating</a>
+    <a href="#configure-the-team">Configure</a>
     ·
-    <a href="#cli">CLI</a>
+    <a href="#docs">Docs</a>
   </p>
 </div>
 
 ## What It Is
 
-Cofounder Crew gives a project-local team to the Codex session you already use.
+Cofounder Crew is a plain-file team runtime for Codex.
 
-You initialize a project once, open Codex in that directory, and talk normally. Codex becomes the Cofounder/orchestrator: it reads the roster, delegates focused work to configured teammates, waits for results, reviews outputs, and owns the final response back to you.
+You keep using Codex as the interface. Cofounder adds a project-local `.cofounder/` folder, a small MCP server, and a roster of teammates that Codex can delegate to. Each teammate can have its own prompt, model, sandbox, write mode, memory, MCP servers, and native Codex skills.
 
-Everything is stored as plain files in the project. There is no web app, hosted control plane, or separate editor.
+The result is simple: open Codex in a repo, talk normally, and let Codex coordinate focused workers instead of stuffing every role and every tool into one context.
 
 ## Quickstart
 
-Open Codex in the project you want to configure and paste:
+Fastest path: open Codex in your project and paste the bootstrap prompt.
+
+<details>
+<summary><strong>Copy Codex bootstrap prompt</strong></summary>
 
 ```text
-Install and configure Cofounder Crew for this computer and this project.
-Use https://github.com/eugeneyvt/cofounder-crew as the source/reference if you need more context.
+Set up Cofounder Crew in this project and explain each meaningful action as you go.
 
-Before changing anything, inspect:
-- Node.js and npm are available, and Node is >=22.
-- Whether this project already has .cofounder/.
-- Whether this project already has AGENTS.md.
-- Whether cofounder-crew is already installed in package.json.
-- Whether Codex already has an MCP server named "cofounder".
-- Whether this is a Git repo with at least one commit.
+Use https://github.com/eugeneyvt/cofounder-crew as the reference if you need more context. Work from the current project cwd. Do not commit, push, publish, or overwrite existing AGENTS.md or .cofounder files without asking.
 
-Then choose the smallest safe setup:
-- If .cofounder/ is missing, initialize Cofounder. Use the worktree template only when the repo has at least one commit; otherwise use the default template.
-- If .cofounder/ already exists, do not reinitialize it. Verify the files, report the project_context mode, and report whether .cofounder/.gitignore ignores runs/, worktrees/, and members/*/home/. Do not change .cofounder/.gitignore unless I explicitly ask.
-- Keep project_context.mode as auto unless I ask for a manually curated .cofounder/project.md.
-- If this project has package.json, prefer a dev dependency install. Otherwise use npm create.
-- Install or repair the Codex MCP entry only if it is missing or wrong.
-- If AGENTS.md already exists, do not overwrite it. Show me the Cofounder bridge block to add.
-- If AGENTS.md does not exist, let Cofounder create it.
+Goal:
+- install the current Cofounder npm package when this project has package.json
+- initialize or repair the project-local Cofounder setup
+- install or repair the Codex MCP entry
+- verify the setup
+- tell me exactly how to start using the team from Codex
 
-After setup, summarize exactly what changed and tell me whether I need to restart Codex.
+Process:
+
+1. Inspect the current state first.
+   Check:
+   - current cwd
+   - node --version and npm --version
+   - codex --version
+   - whether package.json exists
+   - whether package.json already contains cofounder-crew in dependencies or devDependencies
+   - whether .cofounder/team.yaml exists
+   - whether AGENTS.md exists
+   - whether AGENTS.md contains the Cofounder Crew bridge
+   - whether this is a Git repo
+   - whether Git HEAD exists
+   - whether Codex MCP server "cofounder" exists and points to:
+     npx -y --package cofounder-crew -- cofounder serve mcp
+
+2. Install the package before using the local CLI when package.json exists.
+   - If package.json exists, run:
+     npm install --save-dev cofounder-crew@latest
+   - If package.json does not exist, do not create package.json just for Cofounder. Use npm create or npx with --package instead.
+   - Do not install Cofounder globally.
+   - If npx cofounder cannot resolve after install, use:
+     npx -y --package cofounder-crew@latest -- cofounder <command>
+
+3. Initialize or repair with the CLI.
+   - If .cofounder/team.yaml is missing and package.json exists, run:
+     npx cofounder start --setup-codex --yes
+   - If .cofounder/team.yaml is missing and package.json does not exist, run:
+     npm create cofounder@latest -- --setup-codex --yes
+   - If .cofounder/team.yaml already exists, do not re-run init. Run the safe updater instead:
+     npx cofounder update --setup-codex --yes
+     or, without a local dependency:
+     npx -y --package cofounder-crew@latest -- cofounder update --setup-codex --yes
+   - Use --template worktree only if I explicitly asked for isolated worktrees or this repo clearly already uses that workflow. Worktree mode requires a Git repo with at least one commit.
+
+4. Preserve user-owned files.
+   - Do not overwrite AGENTS.md.
+   - If AGENTS.md exists but the Cofounder bridge is missing, show me the exact bridge block and explain that I should add it for proactive delegation.
+   - Do not overwrite existing member prompts, member settings, memory files, or project-owned MCP files.
+   - Do not add root .gitignore entries automatically. Only report recommended ignore entries if they are missing.
+
+5. Verify before claiming success.
+   Run:
+   - npx cofounder doctor
+   - codex mcp get cofounder, if Codex CLI is available
+   - npm ls cofounder-crew --depth=0, if package.json exists
+
+6. Final response format.
+   Tell me:
+   - what package/version is installed or selected
+   - which files were created or changed
+   - whether AGENTS.md needs a manual bridge block
+   - whether I need to restart Codex
+   - the first message to send after restart:
+     Use the Cofounder team. Show me who is available.
+   - the 3 most useful follow-up commands:
+     cofounder add
+     cofounder doctor
+     cofounder team
+
+Do not stop after printing commands unless a command would be unsafe. Actually perform the safe setup steps, then report the result.
+If a verification step fails, do not say the setup is complete. Explain the failure and the next command or manual step needed.
 ```
 
-Manual setup:
+</details>
+
+The same prompt is available at [docs/prompts/bootstrap-codex.md](https://github.com/eugeneyvt/cofounder-crew/blob/main/docs/prompts/bootstrap-codex.md).
+
+Terminal setup is one command, then open Codex:
 
 ```bash
 cd my-project
+npm create cofounder@latest -- --setup-codex
+codex
+```
+
+For non-interactive setup:
+
+```bash
 npm create cofounder@latest -- --setup-codex --yes
-codex
 ```
 
-For isolated implementation work in Git worktrees:
+For isolated implementation tasks, use the worktree template. It requires a Git repo with at least one commit:
 
 ```bash
-cd my-project
-npm create cofounder@latest -- --template worktree --setup-codex --yes
+npm create cofounder@latest -- --template worktree --setup-codex
 codex
 ```
 
-Worktree mode requires a Git repository with at least one commit.
-
-For an existing package where you want the runtime pinned in `devDependencies`:
-
-```bash
-npm install --save-dev cofounder-crew
-npx cofounder init --template worktree
-npx cofounder setup codex --install
-codex
-```
-
-## Using The Team
-
-After installation, the main interface is Codex chat:
+Then ask Codex:
 
 ```text
 Use the Cofounder team. Show me who is available.
 ```
 
+## How It Feels
+
+You keep talking to Codex. Cofounder turns the background work into delegated, inspectable tasks.
+
 ```text
-Plan this feature, delegate implementation to the right teammate, and keep me posted.
+You: Plan this billing change and use the team.
+
+Codex: I will ask backend to inspect the implementation boundary, then ask reviewer to check the patch.
+
+Cofounder:
+- backend runs in an isolated worktree
+- reviewer checks the diff
+- Codex reads the results, applies only what you approve, and gives you the final summary
 ```
 
-```text
-Ask backend to inspect this repo and summarize the implementation boundaries.
+## Why It Exists
+
+Most "AI crew" tools start with a UI, a server, or a framework. Cofounder starts with the thing you already use: Codex in your repo.
+
+| What you get | Why it matters |
+| --- | --- |
+| Codex stays the interface | No new app to learn. Chat with Codex and let it orchestrate. |
+| Local plain files | Team config, prompts, memory, runs, and worktrees are inspectable in the repo. |
+| Focused teammates | Backend, reviewer, designer, or any custom role can have its own instructions and settings. |
+| Scoped MCP | Give Pencil to a designer, GitHub to a reviewer, or no tools to a strict review agent. |
+| Scoped skills | Assign selected project skills, selected user skills, or team-only skills per teammate. |
+| Worktree execution | Let workers make patches in isolated Git worktrees before you apply them. |
+| Observable delegation | Codex can list the team, delegate, wait, inspect logs, read results, review diffs, cancel, and interrupt. |
+
+Good fit:
+
+- repos where Codex already does useful work, but needs clearer role boundaries
+- teams that want local, inspectable configuration instead of a hosted agent dashboard
+- projects with specialist tools that should not be exposed to every agent
+
+Not the goal:
+
+- replacing Codex
+- running a hosted orchestration platform
+- hiding prompts, logs, memory, or task output behind a private control plane
+
+## How It Works
+
+Cofounder installs one MCP server into Codex:
+
+```bash
+codex mcp add cofounder -- npx -y --package cofounder-crew -- cofounder serve mcp
 ```
 
-```text
-Ask reviewer to review backend's last diff before we apply it.
-```
-
-Codex should delegate when a configured teammate owns the work. It should also wait for a real result before treating delegated work as complete.
-
-## What Gets Installed
+Inside each project, Cofounder creates:
 
 ```text
-AGENTS.md
 .cofounder/
-  .gitignore
-  codex-instructions.md
-  project.md
-  team.yaml
-  members/
-    lead/
-      prompt.md
-      settings.toml
-      home/
-    backend/
-      prompt.md
-      settings.toml
-      home/
-    reviewer/
-      prompt.md
-      settings.toml
-      home/
-  memory/
-  runs/
-  worktrees/
+  team.yaml                 # roster, responsibilities, context mode
+  codex-instructions.md     # orchestrator instructions for the primary Codex session
+  project.md                # worker-safe project context
+  members/<member>/         # prompt, settings, runtime home
+  mcp/                      # project-owned MCP servers
+  skills/                   # team-only skills
+  memory/                   # project and member memory notes
+  runs/                     # task records, logs, results
+  worktrees/                # optional isolated task worktrees
 ```
 
-`AGENTS.md` is for the primary Codex session. It tells Codex to act as the Cofounder/orchestrator.
+The primary Codex session reads the Cofounder instructions and uses MCP tools to coordinate the team. Delegated teammates still run from the original project cwd, but with their own Codex settings and runtime home when isolation is needed.
 
-Worker project context has two modes:
+## Configure The Team
 
-```yaml
-project_context:
-  mode: auto
-  file: project.md
-```
-
-`auto` is the default. Each delegated worker gets fresh context derived from `AGENTS.md`, with the Cofounder bridge/orchestrator text removed. Project rules after the bridge are preserved even when there is no following heading.
-
-`manual` makes workers read `.cofounder/project.md` instead. Use it when you want a curated worker context that does not change until you edit or sync it.
-
-```yaml
-project_context:
-  mode: manual
-  file: project.md
-```
-
-Refresh the manual snapshot with:
+The guided flow covers the common edits:
 
 ```bash
-npx cofounder sync project
+npx -y --package cofounder-crew -- cofounder start
+npx -y --package cofounder-crew -- cofounder add
+npx -y --package cofounder-crew -- cofounder doctor
 ```
 
-Generated task logs, worktrees, and member runtime home files are ignored by `.cofounder/.gitignore`.
-
-## Existing AGENTS.md
-
-If `AGENTS.md` already exists, Cofounder will not overwrite it.
-
-Add this bridge block so Codex adopts the Cofounder role:
-
-```markdown
-## Cofounder Crew
-
-This project uses Cofounder Crew for local AI teamwork. You are the Cofounder/orchestrator for this project. Read .cofounder/codex-instructions.md, use the Cofounder MCP tools, and proactively delegate substantive work to the team member whose responsibilities best match the task. Do not perform specialist work yourself when a configured team member owns that responsibility; coordinate the work, monitor progress, and synthesize the final response.
-```
-
-When `project_context.mode` is `auto`, keep this bridge text unchanged unless you know why you are changing it. Cofounder recognizes this orchestrator text and removes it from delegated worker context, so workers receive project rules without being told that they are the main orchestrator.
-
-Cofounder keeps the full generated guidance in `.cofounder/codex-instructions.md`.
-
-## Configuration
-
-The roster lives in `.cofounder/team.yaml`:
-
-```yaml
-members:
-  backend:
-    title: Backend Engineer
-    responsibilities:
-      - inspect and modify code
-      - understand implementation boundaries
-      - write focused tests
-    can_call:
-      - reviewer
-```
-
-Each teammate has a prompt and settings:
-
-```text
-.cofounder/members/backend/
-  prompt.md
-  settings.toml
-  home/
-```
-
-Example settings:
-
-```toml
-model = "gpt-5.5"
-sandbox = "workspace-write"
-approval = "never"
-reasoning_effort = "high"
-
-[write]
-mode = "worktree"
-
-[mcp]
-mode = "inherit"
-allow = []
-
-[memory]
-project = true
-member = true
-max_snippets = 5
-
-[runner.codex]
-include_project_doc = false
-json = true
-extra_args = []
-use_member_home = false
-```
-
-Useful settings:
-
-| Setting | Purpose |
-| --- | --- |
-| `write.mode = "direct"` | Run the teammate in the main working tree. |
-| `write.mode = "worktree"` | Run implementation in `.cofounder/worktrees/<task_id>` for review before apply. |
-| `mcp.mode = "inherit"` | Give the teammate the same Codex MCP environment. |
-| `mcp.mode = "none"` | Keep the teammate local-only. The generated reviewer uses this default. |
-| `mcp.mode = "allowlist"` | Give the teammate only selected MCP servers. |
-| `include_project_doc = false` | Prevent raw `AGENTS.md` from being injected by Codex. Cofounder supplies worker-safe project context itself. |
-
-## MCP Tools
-
-Cofounder exposes the team runtime to Codex through MCP:
-
-| Tool | Purpose |
-| --- | --- |
-| `team.list` | Read the roster and responsibility map. |
-| `team.capabilities` | Inspect runtime capabilities. |
-| `team.delegate` | Start a delegated task. |
-| `team.wait` | Wait briefly for a task and return status, next action, result, and recent logs. A wait timeout means the task is still running, not failed. |
-| `team.result` | Read a task result with explicit empty/truncated flags. |
-| `team.status` | Check task status and metadata. |
-| `team.logs` | Read task events and logs. |
-| `team.diff` | Inspect a worktree task patch. |
-| `team.apply` | Apply a worktree task patch to the main tree. |
-| `team.cancel` | Cancel a running task. |
-| `team.interrupt` | Cancel and resume with steering instructions. |
-
-Manual MCP setup:
+Deterministic commands are available for agents and scripts:
 
 ```bash
-codex mcp add cofounder -- npx -y --package cofounder-crew -- cofounder mcp
+cofounder member add designer --title "Product Designer" --model gpt-5.5 --write-mode worktree
+cofounder mcp add pencil --url https://example.com/mcp --assign designer
+cofounder skill add design-review --scope team --assign designer
+cofounder skill assign api-workflow backend --scope project
+cofounder context mode manual
+cofounder context sync
 ```
 
-Restart Codex after changing MCP configuration.
+If the runtime is not installed locally, prefix commands with `npx -y --package cofounder-crew -- cofounder`.
+
+Project skills live in `.agents/skills/` and can also be assigned to teammates. Team-only skills live in `.cofounder/skills/` and are only linked into selected member runtimes.
+
+Common recipes are in [docs/examples.md](https://github.com/eugeneyvt/cofounder-crew/blob/main/docs/examples.md).
 
 ## Updating
 
-Paste this into Codex from the project you want to update:
-
-```text
-Update Cofounder Crew for this computer and this project.
-
-Inspect first:
-- Latest npm versions for cofounder-crew and create-cofounder.
-- Whether this project has cofounder-crew in package.json.
-- The installed project version with `npm ls cofounder-crew --depth=0` when package.json exists.
-- Whether Codex MCP server "cofounder" exists and points at `npx -y --package cofounder-crew -- cofounder mcp`.
-- Whether .cofounder/team.yaml, project_context mode, member prompts/settings, .cofounder/project.md, and .cofounder/.gitignore exist.
-- Whether .cofounder/.gitignore ignores runs/, worktrees/, and members/*/home/.
-- Whether AGENTS.md contains the Cofounder bridge block.
-
-Then update safely:
-- If cofounder-crew is installed in package.json, update it with npm.
-- If MCP is missing or wrong, repair it.
-- Do not re-run init over an existing .cofounder/.
-- Do not overwrite team prompts, settings, memory, or AGENTS.md.
-- If .cofounder/.gitignore is missing entries, report the recommended entries but do not add them without explicit approval.
-- If project_context mode is manual, run `cofounder sync project` if you want to refresh .cofounder/project.md from AGENTS.md.
-- If generated instructions changed, show me any bridge/config changes to apply manually.
-- If MCP changed, tell me to restart Codex from this project directory.
-
-Summarize old versions, new versions, changed files, and manual follow-ups.
-```
-
-Manual update commands:
+Safe project update:
 
 ```bash
-npm install --save-dev cofounder-crew@latest
-
-# Optional: inspect recommended runtime ignore entries without changing files.
-printf "runs/\nworktrees/\nmembers/*/home/\n"
-
-# Optional when project_context.mode is manual:
-npx cofounder sync project
-
-codex mcp remove cofounder
-codex mcp add cofounder -- npx -y --package cofounder-crew -- cofounder mcp
-
-npm view cofounder-crew version
-npm ls cofounder-crew --depth=0
-codex mcp get cofounder
+npx -y --package cofounder-crew@latest -- cofounder update --setup-codex --yes
 ```
 
-## CLI
+Cofounder update flows should preserve existing `.cofounder/`, member prompts/settings, memory, MCP config, and `AGENTS.md`. If runtime ignore entries are missing, Cofounder should report the recommendation instead of changing your Git ignore rules automatically.
 
-The CLI is for setup, debugging, automation, and fallback workflows.
+## Docs
 
-```bash
-npx -y --package cofounder-crew -- cofounder setup codex --install
-npx -y --package cofounder-crew -- cofounder sync project
-npx -y --package cofounder-crew -- cofounder team
-npx -y --package cofounder-crew -- cofounder status <task_id>
-npx -y --package cofounder-crew -- cofounder logs <task_id>
-npx -y --package cofounder-crew -- cofounder diff <task_id>
-npx -y --package cofounder-crew -- cofounder apply <task_id>
-```
-
-## Interruption
-
-Codex `exec` currently runs delegated tasks as subprocesses. Cofounder supports cancellation and resume-based steering:
-
-1. discover the Codex session id,
-2. cancel the running process,
-3. start a resumed task with revised instructions.
-
-The runtime reports this as:
-
-```json
-{
-  "live_interrupt": false,
-  "interrupt_mode": "cancel-resume"
-}
-```
-
-## Development
-
-```bash
-npm install
-npm run check
-npm test
-npm run build
-```
-
-## Publishing
-
-Publishing runs through GitHub Actions and npm Trusted Publishing.
-
-One-time npm setup for both packages:
-
-| Package | Trusted publisher |
+| Topic | Link |
 | --- | --- |
-| `cofounder-crew` | GitHub Actions, `eugeneyvt/cofounder-crew`, workflow `publish-npm.yml` |
-| `create-cofounder` | GitHub Actions, `eugeneyvt/cofounder-crew`, workflow `publish-npm.yml` |
+| Docs home | [docs/README.md](https://github.com/eugeneyvt/cofounder-crew/blob/main/docs/README.md) |
+| Codex bootstrap prompt | [docs/prompts/bootstrap-codex.md](https://github.com/eugeneyvt/cofounder-crew/blob/main/docs/prompts/bootstrap-codex.md) |
+| Team configuration, AGENTS.md, context, MCP, and skills | [docs/configuration.md](https://github.com/eugeneyvt/cofounder-crew/blob/main/docs/configuration.md) |
+| CLI commands | [docs/cli.md](https://github.com/eugeneyvt/cofounder-crew/blob/main/docs/cli.md) |
+| Delegation runtime, worktrees, logs, and interrupts | [docs/runtime.md](https://github.com/eugeneyvt/cofounder-crew/blob/main/docs/runtime.md) |
+| Practical examples | [docs/examples.md](https://github.com/eugeneyvt/cofounder-crew/blob/main/docs/examples.md) |
+| FAQ | [docs/faq.md](https://github.com/eugeneyvt/cofounder-crew/blob/main/docs/faq.md) |
+| Updating an existing project | [docs/updating.md](https://github.com/eugeneyvt/cofounder-crew/blob/main/docs/updating.md) |
 
-Release flow:
+## Packages
 
-```bash
-npm version <new-version> --no-git-tag-version
-npm version <new-version> --workspace create-cofounder --no-git-tag-version
-git add package.json package-lock.json packages/create-cofounder/package.json
-git commit -m "chore: release v<new-version>"
-git tag v<new-version>
-git push origin main --tags
-```
+`create-cofounder` initializes a project with `npm create cofounder@latest`.
 
-Then publish the GitHub release for the new `vX.Y.Z` tag. The workflow checks, builds, tests, and publishes both npm packages.
+`cofounder-crew` provides the `cofounder` CLI and MCP runtime.
+
+## Requirements
+
+- Node.js 22+
+- npm
+- Codex CLI
+- Git with at least one commit when using worktree mode
+
+## Support
+
+Use [GitHub Issues](https://github.com/eugeneyvt/cofounder-crew/issues) for bugs, broken setup flows, and feature requests.
+
+## License
+
+MIT
