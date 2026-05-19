@@ -1,4 +1,6 @@
 <div align="center">
+  <img src="assets/cofounder_crew_social.png" alt="Cofounder Crew - Local AI teams for your repo." />
+  <br />
   <h1>Cofounder Crew</h1>
   <p>
     Conversation-first local AI teams for Codex.
