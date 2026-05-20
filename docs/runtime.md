@@ -119,4 +119,4 @@ from_main = ["your-server"]
 oauth_credentials_store = "keyring"
 ```
 
-This keeps the member home and scoped skills while allowing Codex to read MCP OAuth credentials from the OS keychain. `cofounder mcp assign <server> <member> --source main` sets this automatically.
+This keeps the member `CODEX_HOME` and scoped skills while allowing Codex to read MCP OAuth credentials from the OS keychain. Cofounder intentionally leaves the OS `HOME` unchanged for member runs because macOS keychain access can break when `HOME` is redirected. `cofounder mcp assign <server> <member> --source main` sets this automatically.

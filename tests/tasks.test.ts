@@ -264,7 +264,7 @@ test("Codex command uses member settings", async () => {
     assert.equal(command.args.at(-1), "-");
     assert.equal(command.cwd, dir);
     assert.equal(command.env["CODEX_HOME"], path.join(dir, ".cofounder/members/backend/home"));
-    assert.equal(command.env["HOME"], path.join(dir, ".cofounder/members/backend/home"));
+    assert.equal(command.env["HOME"], process.env["HOME"]);
 
     runtime.settings.runner = {
       codex: {
@@ -274,7 +274,7 @@ test("Codex command uses member settings", async () => {
     };
     const memberHomeCommand = buildCodexCommand(task, member, runtime.settings, runtime.codex_config, runtime.skills);
     assert.equal(memberHomeCommand.env["CODEX_HOME"], path.join(dir, ".cofounder/members/backend/home"));
-    assert.equal(memberHomeCommand.env["HOME"], path.join(dir, ".cofounder/members/backend/home"));
+    assert.equal(memberHomeCommand.env["HOME"], process.env["HOME"]);
     assert.equal(memberHomeCommand.cwd, dir);
 
     runtime.settings.runner = {

@@ -36,7 +36,7 @@ oauth_credentials_store = "keyring"
 
 `from_main` selects existing MCP servers from the primary Codex config. `team` selects project-owned MCP servers from `.cofounder/mcp/`.
 
-For OAuth-backed remote MCP servers, keep `oauth_credentials_store = "keyring"` so isolated member homes can reuse the OS keychain instead of requiring a separate login. `cofounder mcp assign <server> <member> --source main` sets this automatically.
+For OAuth-backed remote MCP servers, keep `oauth_credentials_store = "keyring"` so isolated member `CODEX_HOME` configs can reuse the OS keychain instead of requiring a separate login. Cofounder does not redirect `HOME` for member runs, because macOS keychain access depends on the normal user home. `cofounder mcp assign <server> <member> --source main` sets this automatically.
 
 ## Can different members have different skills?
 

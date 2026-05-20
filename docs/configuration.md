@@ -203,7 +203,7 @@ Sources:
 | `from_main` | Existing user/global Codex skill roots | The member should reuse a skill already installed for the main user. |
 | `team` | `.cofounder/skills/<skill>/SKILL.md` | The skill should exist only for selected teammates. |
 
-When `skills.mode = "isolated"`, Cofounder launches the member with a member-specific `HOME` and `CODEX_HOME`, links selected skills into that runtime home, and disables unselected project skills for that member.
+When `skills.mode = "isolated"`, Cofounder launches Codex with a member-specific `CODEX_HOME`, links selected skills into that runtime home, and disables unselected project skills for that member. Cofounder leaves the OS `HOME` unchanged so platform keychain access, including MCP OAuth credentials, keeps working.
 
 ## Memory
 

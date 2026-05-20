@@ -83,7 +83,6 @@ export function buildCodexCommand(
   if (useMemberHome && member.home) {
     const memberHome = path.resolve(task.config_root, member.home);
     env["CODEX_HOME"] = memberHome;
-    env["HOME"] = memberHome;
   }
 
   return {

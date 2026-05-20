@@ -74,7 +74,7 @@ cofounder mcp remove pencil
 
 `--source main` assigns a selected MCP server from the primary Codex config.
 
-When assigning from `main`, Cofounder sets `mcp.oauth_credentials_store = "keyring"` for that member unless it already has an explicit value. This lets OAuth-backed remote MCP servers work with isolated member homes and scoped skills.
+When assigning from `main`, Cofounder sets `mcp.oauth_credentials_store = "keyring"` for that member unless it already has an explicit value. This lets OAuth-backed remote MCP servers work with isolated member `CODEX_HOME` configs and scoped skills while keeping OS keychain access available.
 
 ## Skills
 
