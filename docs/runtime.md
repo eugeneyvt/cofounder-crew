@@ -107,3 +107,16 @@ When a member needs isolated MCP or skills, Cofounder prepares a member runtime 
 ```
 
 This directory can contain generated Codex config, linked skills, and a symlink to the local Codex auth file. It is ignored by `.cofounder/.gitignore`.
+
+`skills.mode = "inherit"` means the member uses the primary Codex skill environment and usually does not need a member home. It does not disable the Cofounder member prompt; delegated prompts are assembled by Cofounder and sent directly to `codex exec`.
+
+For OAuth-backed MCP servers assigned with `mcp.from_main`, prefer:
+
+```toml
+[mcp]
+mode = "isolated"
+from_main = ["your-server"]
+oauth_credentials_store = "keyring"
+```
+
+This keeps the member home and scoped skills while allowing Codex to read MCP OAuth credentials from the OS keychain. `cofounder mcp assign <server> <member> --source main` sets this automatically.

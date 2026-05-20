@@ -84,6 +84,7 @@ function buildEffectiveConfig(
     mcp_allowed_servers: codexConfig.allowed_servers,
     mcp_from_main_servers: codexConfig.from_main_servers,
     mcp_team_servers: codexConfig.team_servers,
+    mcp_oauth_credentials_store: codexConfig.oauth_credentials_store ?? "",
     mcp_isolated: codexConfig.isolated,
     work_mode: settings.write?.mode ?? "direct",
     skill_mode: skills.mode,

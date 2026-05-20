@@ -159,7 +159,7 @@ const commands: CommandDefinition[] = [
   {
     path: ["member", "set"],
     summary: "Edit model, sandbox, approval, write mode, MCP mode, or skill mode.",
-    usage: "cofounder member set <member> [--model <model>] [--reasoning <level>] [--sandbox <mode>] [--approval <policy>] [--write-mode <direct|worktree>] [--mcp-mode <mode>] [--skills-mode <mode>]",
+    usage: "cofounder member set <member> [--model <model>] [--reasoning <level>] [--sandbox <mode>] [--approval <policy>] [--write-mode <direct|worktree>] [--mcp-mode <mode>] [--mcp-oauth-store <keyring|ephemeral|inherit>] [--skills-mode <mode>]",
     run: commandMemberSet
   },
   {
@@ -558,6 +558,7 @@ async function commandMemberSet(args: string[]): Promise<void> {
     approval: options.values.approval,
     write_mode: options.values["write-mode"] as never,
     mcp_mode: options.values["mcp-mode"] as never,
+    mcp_oauth_credentials_store: options.values["mcp-oauth-store"],
     skills_mode: options.values["skills-mode"] as never
   });
   printChangeResult(result);

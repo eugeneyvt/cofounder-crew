@@ -316,6 +316,7 @@ live_interrupt = false
 mode = "allowlist"
 allow = ["linear", "local"]
 config_path = "base-codex.toml"
+oauth_credentials_store = "keyring"
 
 [memory]
 project = true
@@ -337,15 +338,18 @@ use_member_home = false
 
     assert.equal(runtime.codex_config.mode, "allowlist");
     assert.equal(runtime.codex_config.isolated, true);
+    assert.equal(runtime.codex_config.oauth_credentials_store, "keyring");
     assert.deepEqual(runtime.codex_config.allowed_servers, ["linear", "local"]);
     assert.deepEqual(command.args.slice(0, 2), ["-a", "never"]);
     assert.ok(command.args.indexOf("-a") < command.args.indexOf("exec"));
     assert.ok(command.args.includes("--ignore-user-config"));
+    assert.ok(command.args.some((arg) => arg.includes("mcp_oauth_credentials_store")));
     assert.ok(command.args.some((arg) => arg.includes("mcp_servers.linear.url")));
     assert.ok(command.args.some((arg) => arg.includes("mcp_servers.local.command")));
     assert.ok(!command.args.some((arg) => arg.includes("INLINE_SECRET")));
 
     const codexConfig = await readFile(path.join(project.projectRoot, runtime.member_codex_config_path ?? ""), "utf8");
+    assert.match(codexConfig, /mcp_oauth_credentials_store = "keyring"/);
     assert.match(codexConfig, /\[mcp_servers.linear\]/);
     assert.match(codexConfig, /\[mcp_servers.local\]/);
     assert.doesNotMatch(codexConfig, /INLINE_SECRET/);
@@ -383,6 +387,7 @@ mode = "isolated"
 from_main = ["github"]
 team = ["pencil"]
 config_path = "base-codex.toml"
+oauth_credentials_store = "keyring"
 
 [skills]
 mode = "isolated"
@@ -409,12 +414,14 @@ use_member_home = false
 
     assert.equal(runtime.codex_config.mode, "isolated");
     assert.equal(runtime.codex_config.isolated, true);
+    assert.equal(runtime.codex_config.oauth_credentials_store, "keyring");
     assert.deepEqual(runtime.codex_config.from_main_servers, ["github"]);
     assert.deepEqual(runtime.codex_config.team_servers, ["pencil"]);
     assert.equal(command.args.includes("--ignore-user-config"), false);
     assert.equal(command.env.CODEX_HOME, path.join(dir, ".cofounder/members/backend/home"));
 
     const codexConfig = await readFile(path.join(project.projectRoot, runtime.member_codex_config_path ?? ""), "utf8");
+    assert.match(codexConfig, /mcp_oauth_credentials_store = "keyring"/);
     assert.match(codexConfig, /\[mcp_servers.github\]/);
     assert.match(codexConfig, /\[mcp_servers.pencil\]/);
     assert.match(codexConfig, new RegExp(escapeRegExp(dir)));

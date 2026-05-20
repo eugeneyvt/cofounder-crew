@@ -31,9 +31,12 @@ Yes. In a member `settings.toml`:
 mode = "isolated"
 from_main = ["github"]
 team = ["pencil"]
+oauth_credentials_store = "keyring"
 ```
 
 `from_main` selects existing MCP servers from the primary Codex config. `team` selects project-owned MCP servers from `.cofounder/mcp/`.
+
+For OAuth-backed remote MCP servers, keep `oauth_credentials_store = "keyring"` so isolated member homes can reuse the OS keychain instead of requiring a separate login. `cofounder mcp assign <server> <member> --source main` sets this automatically.
 
 ## Can different members have different skills?
 
@@ -48,6 +51,8 @@ team = ["design-review"]
 ```
 
 Project skills live in `.agents/skills/`. Team-only skills live in `.cofounder/skills/`. Main skills are selected from the existing user/global Codex skill roots.
+
+`skills.mode = "inherit"` is different: it lets the member use the primary Codex skill environment and does not create an isolated member skill scope. It is not the right fix for MCP OAuth; use `mcp.oauth_credentials_store = "keyring"` for that.
 
 ## Why does Cofounder need an AGENTS.md bridge?
 

@@ -29,6 +29,7 @@ export interface MemberSetOptions {
   approval?: string;
   write_mode?: WorkMode;
   mcp_mode?: MemberSettings["mcp"] extends infer M ? M extends { mode?: infer T } ? T : never : never;
+  mcp_oauth_credentials_store?: string;
   skills_mode?: MemberSettings["skills"] extends infer S ? S extends { mode?: infer T } ? T : never : never;
 }
 
@@ -125,6 +126,14 @@ export async function setMember(startDir: string, memberId: string, options: Mem
   if (options.approval) settings.approval = options.approval;
   if (options.write_mode) settings.write = { ...(settings.write ?? {}), mode: options.write_mode };
   if (options.mcp_mode) settings.mcp = { ...(settings.mcp ?? {}), mode: options.mcp_mode };
+  if (options.mcp_oauth_credentials_store) {
+    settings.mcp = { ...(settings.mcp ?? {}) };
+    if (options.mcp_oauth_credentials_store === "inherit") {
+      delete settings.mcp.oauth_credentials_store;
+    } else {
+      settings.mcp.oauth_credentials_store = options.mcp_oauth_credentials_store;
+    }
+  }
   if (options.skills_mode) settings.skills = { ...(settings.skills ?? {}), mode: options.skills_mode };
 
   const paths = getMemberPaths(project, member);
@@ -206,10 +215,14 @@ export async function assignMcpServer(startDir: string, serverId: string, source
       from_main: settings.mcp?.from_main ?? [],
       team: settings.mcp?.team ?? [],
       config_path: settings.mcp?.config_path,
-      include_inline_env: settings.mcp?.include_inline_env
+      include_inline_env: settings.mcp?.include_inline_env,
+      oauth_credentials_store: settings.mcp?.oauth_credentials_store
     };
     const key = source === "main" ? "from_main" : "team";
     settings.mcp[key] = addUnique(settings.mcp[key] ?? [], serverId);
+    if (source === "main" && !settings.mcp.oauth_credentials_store) {
+      settings.mcp.oauth_credentials_store = "keyring";
+    }
     const paths = getMemberPaths(project, member);
     await writeFile(paths.settingsAbsolutePath, formatMemberSettings(settings), "utf8");
     changed.push(paths.settingsPath);

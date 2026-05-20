@@ -56,6 +56,7 @@ cofounder member list
 cofounder member show backend
 cofounder member add designer --title "Product Designer" --model gpt-5.5 --write-mode worktree
 cofounder member set designer --model gpt-5.5 --reasoning high --sandbox workspace-write
+cofounder member set designer --mcp-oauth-store keyring
 cofounder member remove designer
 ```
 
@@ -72,6 +73,8 @@ cofounder mcp remove pencil
 `--source team` assigns a project-owned MCP server from `.cofounder/mcp/`.
 
 `--source main` assigns a selected MCP server from the primary Codex config.
+
+When assigning from `main`, Cofounder sets `mcp.oauth_credentials_store = "keyring"` for that member unless it already has an explicit value. This lets OAuth-backed remote MCP servers work with isolated member homes and scoped skills.
 
 ## Skills
 
