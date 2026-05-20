@@ -30,6 +30,7 @@ export interface MemberSetOptions {
   write_mode?: WorkMode;
   mcp_mode?: MemberSettings["mcp"] extends infer M ? M extends { mode?: infer T } ? T : never : never;
   mcp_oauth_credentials_store?: string;
+  mcp_tool_approval?: string;
   skills_mode?: MemberSettings["skills"] extends infer S ? S extends { mode?: infer T } ? T : never : never;
 }
 
@@ -41,6 +42,7 @@ export interface McpAddOptions {
   cwd?: string;
   env?: Record<string, string>;
   assign?: string[];
+  tool_approval?: string;
 }
 
 export interface SkillAddOptions {
@@ -134,6 +136,14 @@ export async function setMember(startDir: string, memberId: string, options: Mem
       settings.mcp.oauth_credentials_store = options.mcp_oauth_credentials_store;
     }
   }
+  if (options.mcp_tool_approval) {
+    settings.mcp = { ...(settings.mcp ?? {}) };
+    if (options.mcp_tool_approval === "inherit") {
+      delete settings.mcp.tool_approval;
+    } else {
+      settings.mcp.tool_approval = options.mcp_tool_approval;
+    }
+  }
   if (options.skills_mode) settings.skills = { ...(settings.skills ?? {}), mode: options.skills_mode };
 
   const paths = getMemberPaths(project, member);
@@ -191,7 +201,9 @@ export async function addMcpServer(startDir: string, options: McpAddOptions): Pr
 
   const changed = [path.relative(project.projectRoot, serverPath)];
   if (options.assign?.length) {
-    const assigned = await assignMcpServer(startDir, options.id, "team", options.assign);
+    const assignOptions: Parameters<typeof assignMcpServer>[4] = {};
+    if (options.tool_approval) assignOptions.tool_approval = options.tool_approval;
+    const assigned = await assignMcpServer(startDir, options.id, "team", options.assign, assignOptions);
     changed.push(...assigned.changed);
   }
 
@@ -202,7 +214,13 @@ export async function addMcpServer(startDir: string, options: McpAddOptions): Pr
   };
 }
 
-export async function assignMcpServer(startDir: string, serverId: string, source: McpSource, members: string[]): Promise<ChangeResult> {
+export async function assignMcpServer(
+  startDir: string,
+  serverId: string,
+  source: McpSource,
+  members: string[],
+  options: { tool_approval?: string } = {}
+): Promise<ChangeResult> {
   const project = await loadProject(startDir);
   validateId(serverId, "MCP server id");
   const changed: string[] = [];
@@ -219,12 +237,16 @@ export async function assignMcpServer(startDir: string, serverId: string, source
     if (previousMcp?.config_path) nextMcp.config_path = previousMcp.config_path;
     if (previousMcp?.include_inline_env !== undefined) nextMcp.include_inline_env = previousMcp.include_inline_env;
     if (previousMcp?.oauth_credentials_store) nextMcp.oauth_credentials_store = previousMcp.oauth_credentials_store;
+    if (previousMcp?.tool_approval) nextMcp.tool_approval = previousMcp.tool_approval;
     settings.mcp = nextMcp;
 
     const key = source === "main" ? "from_main" : "team";
     nextMcp[key] = addUnique(nextMcp[key] ?? [], serverId);
     if (source === "main" && !nextMcp.oauth_credentials_store) {
       nextMcp.oauth_credentials_store = "keyring";
+    }
+    if (!nextMcp.tool_approval) {
+      nextMcp.tool_approval = options.tool_approval ?? "approve";
     }
     const paths = getMemberPaths(project, member);
     await writeFile(paths.settingsAbsolutePath, formatMemberSettings(settings), "utf8");

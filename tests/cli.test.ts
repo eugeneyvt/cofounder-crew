@@ -49,7 +49,9 @@ test("CLI can add members, MCP servers, and scoped skills", async () => {
       "github",
       "designer",
       "--source",
-      "main"
+      "main",
+      "--tool-approval",
+      "approve"
     ], { cwd: dir });
     await execFileAsync(cli, [
       ...cliArgs,
@@ -57,7 +59,9 @@ test("CLI can add members, MCP servers, and scoped skills", async () => {
       "set",
       "designer",
       "--mcp-oauth-store",
-      "ephemeral"
+      "ephemeral",
+      "--mcp-tool-approval",
+      "prompt"
     ], { cwd: dir });
     await execFileAsync(cli, [
       ...cliArgs,
@@ -91,6 +95,7 @@ test("CLI can add members, MCP servers, and scoped skills", async () => {
     assert.match(settings, /mode = "worktree"/);
     assert.match(settings, /from_main = \[ "github" \]/);
     assert.match(settings, /oauth_credentials_store = "ephemeral"/);
+    assert.match(settings, /tool_approval = "prompt"/);
     assert.match(settings, /team = \[ "pencil" \]/);
     assert.match(settings, /team = \[ "design-review" \]/);
     assert.match(mcp, /url = "https:\/\/example\.com\/mcp"/);

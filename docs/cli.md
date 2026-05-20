@@ -57,6 +57,7 @@ cofounder member show backend
 cofounder member add designer --title "Product Designer" --model gpt-5.5 --write-mode worktree
 cofounder member set designer --model gpt-5.5 --reasoning high --sandbox workspace-write
 cofounder member set designer --mcp-oauth-store keyring
+cofounder member set designer --mcp-tool-approval approve
 cofounder member remove designer
 ```
 
@@ -66,7 +67,7 @@ cofounder member remove designer
 cofounder mcp list
 cofounder mcp add pencil --url https://example.com/mcp --assign designer
 cofounder mcp add local-tool --command node --arg ./mcp/server.js --cwd "{project_root}"
-cofounder mcp assign github backend --source main
+cofounder mcp assign github backend --source main --tool-approval approve
 cofounder mcp remove pencil
 ```
 
@@ -75,6 +76,8 @@ cofounder mcp remove pencil
 `--source main` assigns a selected MCP server from the primary Codex config.
 
 When assigning from `main`, Cofounder sets `mcp.oauth_credentials_store = "keyring"` for that member unless it already has an explicit value. This lets OAuth-backed remote MCP servers work with isolated member `CODEX_HOME` configs and scoped skills while keeping OS keychain access available.
+
+MCP assignments default `mcp.tool_approval = "approve"` because delegated members run through non-interactive `codex exec`; otherwise Codex can prompt for a tool approval that no user can answer. Use `--tool-approval auto` or `cofounder member set <member> --mcp-tool-approval auto` when you want Codex's default approval behavior instead.
 
 ## Skills
 

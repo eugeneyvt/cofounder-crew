@@ -150,6 +150,7 @@ mode = "isolated"
 from_main = ["github"]
 team = ["pencil"]
 oauth_credentials_store = "keyring"
+tool_approval = "approve"
 ```
 
 `from_main` selects MCP servers from the primary Codex config. By default Cofounder reads `$CODEX_HOME/config.toml`, or `mcp.config_path` if you set it.
@@ -157,6 +158,8 @@ oauth_credentials_store = "keyring"
 `team` selects project-owned MCP servers from `.cofounder/mcp/<server>.toml`.
 
 `oauth_credentials_store = "keyring"` tells Codex to use the OS keychain for OAuth MCP credentials. Cofounder sets this automatically when you assign a server with `--source main`, so a member can keep `skills.mode = "isolated"` and still use OAuth-backed MCP servers that were authenticated in the primary Codex environment.
+
+`tool_approval = "approve"` maps to Codex MCP `default_tools_approval_mode = "approve"` for the selected member servers. This matters for delegated members because they run non-interactively through `codex exec`; if Codex asks for a tool approval, there is no live user prompt to answer and the MCP call can be cancelled. Set `tool_approval = "auto"` or remove it when you want Codex's default MCP approval behavior.
 
 Modes:
 
@@ -181,6 +184,7 @@ Assign it:
 cofounder mcp add pencil --url https://example.com/mcp --assign designer
 cofounder mcp assign github backend --source main
 cofounder member set backend --mcp-oauth-store keyring
+cofounder member set backend --mcp-tool-approval approve
 ```
 
 ## Skill Scoping

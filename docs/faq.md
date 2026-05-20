@@ -32,11 +32,14 @@ mode = "isolated"
 from_main = ["github"]
 team = ["pencil"]
 oauth_credentials_store = "keyring"
+tool_approval = "approve"
 ```
 
 `from_main` selects existing MCP servers from the primary Codex config. `team` selects project-owned MCP servers from `.cofounder/mcp/`.
 
 For OAuth-backed remote MCP servers, keep `oauth_credentials_store = "keyring"` so isolated member `CODEX_HOME` configs can reuse the OS keychain instead of requiring a separate login. Cofounder does not redirect `HOME` for member runs, because macOS keychain access depends on the normal user home. `cofounder mcp assign <server> <member> --source main` sets this automatically.
+
+For non-interactive delegated members, use `tool_approval = "approve"` for MCP servers the member is trusted to call. Without it, Codex may ask for MCP tool approval and the worker run can report `user cancelled MCP tool call`.
 
 ## Can different members have different skills?
 

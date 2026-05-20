@@ -159,7 +159,7 @@ const commands: CommandDefinition[] = [
   {
     path: ["member", "set"],
     summary: "Edit model, sandbox, approval, write mode, MCP mode, or skill mode.",
-    usage: "cofounder member set <member> [--model <model>] [--reasoning <level>] [--sandbox <mode>] [--approval <policy>] [--write-mode <direct|worktree>] [--mcp-mode <mode>] [--mcp-oauth-store <keyring|ephemeral|inherit>] [--skills-mode <mode>]",
+    usage: "cofounder member set <member> [--model <model>] [--reasoning <level>] [--sandbox <mode>] [--approval <policy>] [--write-mode <direct|worktree>] [--mcp-mode <mode>] [--mcp-oauth-store <keyring|ephemeral|inherit>] [--mcp-tool-approval <auto|prompt|approve|inherit>] [--skills-mode <mode>]",
     run: commandMemberSet
   },
   {
@@ -183,13 +183,13 @@ const commands: CommandDefinition[] = [
   {
     path: ["mcp", "add"],
     summary: "Add a project-owned MCP server.",
-    usage: "cofounder mcp add [id] [--url <url> | --command <cmd>] [--arg <arg>] [--cwd <cwd>] [--env KEY=VALUE] [--assign <members>] [--yes]",
+    usage: "cofounder mcp add [id] [--url <url> | --command <cmd>] [--arg <arg>] [--cwd <cwd>] [--env KEY=VALUE] [--assign <members>] [--tool-approval <auto|prompt|approve>] [--yes]",
     run: commandMcpAdd
   },
   {
     path: ["mcp", "assign"],
     summary: "Assign an MCP server to teammates.",
-    usage: "cofounder mcp assign <server> <member[,member]> [--source <team|main>]",
+    usage: "cofounder mcp assign <server> <member[,member]> [--source <team|main>] [--tool-approval <auto|prompt|approve>]",
     run: commandMcpAssign
   },
   {
@@ -567,6 +567,8 @@ async function commandMemberSet(args: string[]): Promise<void> {
   const mcpMode = normalizeMcpMode(options.values["mcp-mode"]);
   if (mcpMode) setOptions.mcp_mode = mcpMode;
   if (options.values["mcp-oauth-store"]) setOptions.mcp_oauth_credentials_store = options.values["mcp-oauth-store"];
+  const mcpToolApproval = normalizeMcpToolApproval(options.values["mcp-tool-approval"]);
+  if (mcpToolApproval) setOptions.mcp_tool_approval = mcpToolApproval;
   const skillsMode = normalizeSkillsMode(options.values["skills-mode"]);
   if (skillsMode) setOptions.skills_mode = skillsMode;
 
@@ -608,6 +610,8 @@ async function commandMcpAdd(args: string[]): Promise<void> {
     env: parseEnv(options.repeated["env"] ?? []),
     assign: csv(options.values["assign"])
   };
+  const toolApproval = normalizeMcpToolApproval(options.values["tool-approval"]);
+  if (toolApproval) addOptions.tool_approval = toolApproval;
   if (url) addOptions.url = url;
   if (command) addOptions.command = command;
   if (options.values["cwd"]) addOptions.cwd = options.values["cwd"];
@@ -621,7 +625,10 @@ async function commandMcpAssign(args: string[]): Promise<void> {
   const server = requiredArg(options.positionals[0], "server");
   const members = csv(requiredArg(options.positionals[1], "member[,member]"));
   const source = normalizeMcpSource(options.values["source"] ?? "team");
-  const result = await assignMcpServer(process.cwd(), server, source, members);
+  const toolApproval = normalizeMcpToolApproval(options.values["tool-approval"]);
+  const assignOptions: Parameters<typeof assignMcpServer>[4] = {};
+  if (toolApproval) assignOptions.tool_approval = toolApproval;
+  const result = await assignMcpServer(process.cwd(), server, source, members, assignOptions);
   printChangeResult(result);
 }
 
@@ -1098,6 +1105,16 @@ function normalizeMcpMode(value: string | undefined): NonNullable<NonNullable<Me
   }
   if (value !== "inherit" && value !== "none" && value !== "allowlist" && value !== "isolated") {
     throw new CofounderError("MCP mode must be inherit, none, allowlist, or isolated");
+  }
+  return value;
+}
+
+function normalizeMcpToolApproval(value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value !== "auto" && value !== "prompt" && value !== "approve" && value !== "inherit") {
+    throw new CofounderError("MCP tool approval must be auto, prompt, approve, or inherit");
   }
   return value;
 }

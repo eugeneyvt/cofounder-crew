@@ -58,6 +58,7 @@ export interface MemberSettings {
     config_path?: string;
     include_inline_env?: boolean;
     oauth_credentials_store?: "keyring" | "ephemeral" | string;
+    tool_approval?: "auto" | "prompt" | "approve" | string;
   };
   skills?: {
     mode?: "inherit" | "none" | "allowlist" | "isolated";

@@ -15,6 +15,7 @@ export interface PreparedCodexConfig {
   from_main_servers: string[];
   team_servers: string[];
   oauth_credentials_store: string | null;
+  tool_approval: string | null;
   isolated: boolean;
   override_args: string[];
 }
@@ -30,6 +31,7 @@ export async function prepareCodexConfig(
   const fromMainServers = settings.mcp?.from_main ?? settings.mcp?.allow ?? [];
   const teamServers = settings.mcp?.team ?? [];
   const oauthCredentialsStore = normalizeMcpOauthCredentialsStore(settings);
+  const toolApproval = normalizeMcpToolApproval(settings);
   validateMcpSettings(mode, settings.mcp?.allow ?? [], fromMainServers, teamServers);
 
   const mainServers = mode === "allowlist" || mode === "isolated"
@@ -38,7 +40,7 @@ export async function prepareCodexConfig(
   const teamMcpServers = mode === "allowlist" || mode === "isolated"
     ? await loadSelectedTeamMcpServers(project, teamServers)
     : {};
-  const selectedServers = mergeMcpServers(mainServers, teamMcpServers);
+  const selectedServers = applyMcpToolApproval(mergeMcpServers(mainServers, teamMcpServers), toolApproval);
 
   const codexConfig = buildCodexConfig(settings, selectedServers, options.disabledSkillPaths ?? [], oauthCredentialsStore);
   let configPath: string | null = null;
@@ -55,6 +57,7 @@ export async function prepareCodexConfig(
     from_main_servers: mode === "allowlist" || mode === "isolated" ? fromMainServers : [],
     team_servers: mode === "allowlist" || mode === "isolated" ? teamServers : [],
     oauth_credentials_store: oauthCredentialsStore,
+    tool_approval: toolApproval,
     isolated: mode !== "inherit",
     override_args: mode === "allowlist" || mode === "isolated" ? buildMcpOverrideArgs(selectedServers, oauthCredentialsStore) : []
   };
@@ -99,6 +102,17 @@ function normalizeMcpOauthCredentialsStore(settings: MemberSettings): string | n
   }
   if (value !== "keyring" && value !== "ephemeral") {
     throw new CofounderError(`Unsupported mcp.oauth_credentials_store: ${value}. Expected "keyring", "ephemeral", or "inherit"`);
+  }
+  return value;
+}
+
+function normalizeMcpToolApproval(settings: MemberSettings): string | null {
+  const value = settings.mcp?.tool_approval;
+  if (!value || value === "inherit") {
+    return null;
+  }
+  if (value !== "auto" && value !== "prompt" && value !== "approve") {
+    throw new CofounderError(`Unsupported mcp.tool_approval: ${value}. Expected "auto", "prompt", "approve", or "inherit"`);
   }
   return value;
 }
@@ -179,6 +193,19 @@ function mergeMcpServers(
   return { ...mainServers, ...teamServers };
 }
 
+function applyMcpToolApproval(
+  servers: Record<string, Record<string, unknown>>,
+  toolApproval: string | null
+): Record<string, Record<string, unknown>> {
+  if (!toolApproval) {
+    return servers;
+  }
+  return Object.fromEntries(Object.entries(servers).map(([server, definition]) => [
+    server,
+    { ...definition, default_tools_approval_mode: toolApproval }
+  ]));
+}
+
 function resolveBaseCodexConfigPath(project: LoadedProject, settings: MemberSettings): string {
   if (settings.mcp?.config_path) {
     return resolveUserPath(settings.mcp.config_path, project.projectRoot);
@@ -209,6 +236,10 @@ function sanitizeMcpServerDefinition(definition: Record<string, unknown>, includ
     "oauth_resource",
     "scopes",
     "supports_parallel_tool_calls",
+    "default_tools_approval_mode",
+    "enabled_tools",
+    "disabled_tools",
+    "tools",
     "startup_timeout_sec",
     "tool_timeout_sec"
   ];
