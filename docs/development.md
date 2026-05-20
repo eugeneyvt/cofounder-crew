@@ -9,6 +9,8 @@ npm test
 npm run build
 ```
 
+CI runs on Linux, macOS, and Windows with Node 22. Linux and macOS run the full test suite. Windows runs typecheck, build, package lint, and a CLI smoke test because the runtime target for Codex on Windows is WSL2.
+
 Useful package commands:
 
 ```bash

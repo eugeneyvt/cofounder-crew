@@ -50,7 +50,7 @@
     "cofounder-mcp": "dist/src/mcp.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && chmod +x dist/src/cli.js dist/src/mcp.js dist/src/worker.js",
+    "build": "tsc -p tsconfig.json && node scripts/mark-executable.mjs",
     "check": "tsc -p tsconfig.json --noEmit && node scripts/check-ts-hygiene.mjs",
     "check:package": "npm run build && publint run --strict && publint run packages/create-cofounder --strict",
     "test": "tsx --test tests/*.test.ts",

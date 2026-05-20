@@ -10,6 +10,7 @@
   <p>
     <a href="https://www.npmjs.com/package/create-cofounder"><img src="https://img.shields.io/npm/v/create-cofounder?label=create-cofounder" alt="create-cofounder npm version" /></a>
     <a href="https://www.npmjs.com/package/cofounder-crew"><img src="https://img.shields.io/npm/v/cofounder-crew?label=cofounder-crew" alt="cofounder-crew npm version" /></a>
+    <a href="https://github.com/eugeneyvt/cofounder-crew/actions/workflows/ci.yml"><img src="https://github.com/eugeneyvt/cofounder-crew/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
     <img src="https://img.shields.io/badge/node-22%2B-339933" alt="Node.js 22+" />
     <img src="https://img.shields.io/badge/Codex-first-111827" alt="Codex first" />
     <img src="https://img.shields.io/badge/MCP-enabled-4f46e5" alt="MCP enabled" />
@@ -318,6 +319,8 @@ cofounder pin
 - npm
 - Codex CLI
 - Git with at least one commit when using worktree mode
+
+Cofounder targets the same operating systems as Codex CLI: macOS, Linux, and Windows via WSL2. CI verifies Linux and macOS with the full test suite, plus Windows package/build sanity.
 
 ## Contributing
 
