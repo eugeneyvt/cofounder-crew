@@ -21,16 +21,29 @@
   },
   "license": "MIT",
   "type": "module",
+  "types": "./dist/src/runtime.d.ts",
   "files": [
     "dist/src",
     "README.md",
     "docs"
   ],
   "exports": {
-    ".": "./dist/src/runtime.js",
-    "./init": "./dist/src/init.js",
-    "./setup": "./dist/src/setup.js",
-    "./templates": "./dist/src/templates.js"
+    ".": {
+      "types": "./dist/src/runtime.d.ts",
+      "default": "./dist/src/runtime.js"
+    },
+    "./init": {
+      "types": "./dist/src/init.d.ts",
+      "default": "./dist/src/init.js"
+    },
+    "./setup": {
+      "types": "./dist/src/setup.d.ts",
+      "default": "./dist/src/setup.js"
+    },
+    "./templates": {
+      "types": "./dist/src/templates.d.ts",
+      "default": "./dist/src/templates.js"
+    }
   },
   "bin": {
     "cofounder": "dist/src/cli.js",
