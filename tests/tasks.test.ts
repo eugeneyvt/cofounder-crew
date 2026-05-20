@@ -263,8 +263,8 @@ test("Codex command uses member settings", async () => {
     assert.ok(command.args.includes("--json"));
     assert.equal(command.args.at(-1), "-");
     assert.equal(command.cwd, dir);
-    assert.equal(command.env.CODEX_HOME, path.join(dir, ".cofounder/members/backend/home"));
-    assert.equal(command.env.HOME, path.join(dir, ".cofounder/members/backend/home"));
+    assert.equal(command.env["CODEX_HOME"], path.join(dir, ".cofounder/members/backend/home"));
+    assert.equal(command.env["HOME"], path.join(dir, ".cofounder/members/backend/home"));
 
     runtime.settings.runner = {
       codex: {
@@ -273,8 +273,8 @@ test("Codex command uses member settings", async () => {
       }
     };
     const memberHomeCommand = buildCodexCommand(task, member, runtime.settings, runtime.codex_config, runtime.skills);
-    assert.equal(memberHomeCommand.env.CODEX_HOME, path.join(dir, ".cofounder/members/backend/home"));
-    assert.equal(memberHomeCommand.env.HOME, path.join(dir, ".cofounder/members/backend/home"));
+    assert.equal(memberHomeCommand.env["CODEX_HOME"], path.join(dir, ".cofounder/members/backend/home"));
+    assert.equal(memberHomeCommand.env["HOME"], path.join(dir, ".cofounder/members/backend/home"));
     assert.equal(memberHomeCommand.cwd, dir);
 
     runtime.settings.runner = {
@@ -418,7 +418,7 @@ use_member_home = false
     assert.deepEqual(runtime.codex_config.from_main_servers, ["github"]);
     assert.deepEqual(runtime.codex_config.team_servers, ["pencil"]);
     assert.equal(command.args.includes("--ignore-user-config"), false);
-    assert.equal(command.env.CODEX_HOME, path.join(dir, ".cofounder/members/backend/home"));
+    assert.equal(command.env["CODEX_HOME"], path.join(dir, ".cofounder/members/backend/home"));
 
     const codexConfig = await readFile(path.join(project.projectRoot, runtime.member_codex_config_path ?? ""), "utf8");
     assert.match(codexConfig, /mcp_oauth_credentials_store = "keyring"/);
@@ -433,9 +433,9 @@ use_member_home = false
 
 test("MCP isolated team-only mode does not require primary Codex config", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-mcp-team-only-"));
-  const originalCodexHome = process.env.CODEX_HOME;
+  const originalCodexHome = process.env["CODEX_HOME"];
   try {
-    process.env.CODEX_HOME = path.join(dir, "missing-codex-home");
+    process.env["CODEX_HOME"] = path.join(dir, "missing-codex-home");
     await initProject(dir);
 
     const project = await loadProject(dir);
@@ -446,7 +446,7 @@ test("MCP isolated team-only mode does not require primary Codex config", async 
     assert.deepEqual(runtime.codex_config.from_main_servers, []);
     assert.deepEqual(runtime.codex_config.team_servers, ["cofounder"]);
   } finally {
-    process.env.CODEX_HOME = originalCodexHome;
+    process.env["CODEX_HOME"] = originalCodexHome;
     await rm(dir, { recursive: true, force: true });
   }
 });
@@ -496,13 +496,13 @@ use_member_home = false
 test("Codex runner records status, logs, and result with a fake codex binary", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-runner-"));
   const fakeBin = await mkdtemp(path.join(os.tmpdir(), "cofounder-fake-bin-"));
-  const originalPath = process.env.PATH;
+  const originalPath = process.env["PATH"];
 
   try {
     const fakeCodexPath = path.join(fakeBin, "codex");
     await writeFile(fakeCodexPath, fakeCodexScript(), "utf8");
     await chmod(fakeCodexPath, 0o755);
-    process.env.PATH = `${fakeBin}${path.delimiter}${originalPath ?? ""}`;
+    process.env["PATH"] = `${fakeBin}${path.delimiter}${originalPath ?? ""}`;
 
     await initProject(dir);
     const project = await loadProject(dir);
@@ -530,7 +530,7 @@ test("Codex runner records status, logs, and result with a fake codex binary", a
     assert.match(events, /agent.message/);
     assert.match(events, /tool.call/);
   } finally {
-    process.env.PATH = originalPath;
+    process.env["PATH"] = originalPath;
     await rm(dir, { recursive: true, force: true });
     await rm(fakeBin, { recursive: true, force: true });
   }
@@ -539,14 +539,14 @@ test("Codex runner records status, logs, and result with a fake codex binary", a
 test("Codex runner records git changed files", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-git-files-"));
   const fakeBin = await mkdtemp(path.join(os.tmpdir(), "cofounder-git-bin-"));
-  const originalPath = process.env.PATH;
+  const originalPath = process.env["PATH"];
 
   try {
     await initGitRepo(dir);
     const fakeCodexPath = path.join(fakeBin, "codex");
     await writeFile(fakeCodexPath, fakeCodexScript(), "utf8");
     await chmod(fakeCodexPath, 0o755);
-    process.env.PATH = `${fakeBin}${path.delimiter}${originalPath ?? ""}`;
+    process.env["PATH"] = `${fakeBin}${path.delimiter}${originalPath ?? ""}`;
 
     await initProject(dir);
     await commitAll(dir, "cofounder init");
@@ -568,7 +568,7 @@ test("Codex runner records git changed files", async () => {
     assert.ok(finalTask.touched_files.includes("changed-file.txt"));
     assert.equal(finalTask.conflict_risk, false);
   } finally {
-    process.env.PATH = originalPath;
+    process.env["PATH"] = originalPath;
     await rm(dir, { recursive: true, force: true });
     await rm(fakeBin, { recursive: true, force: true });
   }
@@ -577,7 +577,7 @@ test("Codex runner records git changed files", async () => {
 test("Codex runner marks conflict risk when baseline dirty files remain dirty", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-git-risk-"));
   const fakeBin = await mkdtemp(path.join(os.tmpdir(), "cofounder-risk-bin-"));
-  const originalPath = process.env.PATH;
+  const originalPath = process.env["PATH"];
 
   try {
     await initGitRepo(dir);
@@ -585,7 +585,7 @@ test("Codex runner marks conflict risk when baseline dirty files remain dirty", 
     const fakeCodexPath = path.join(fakeBin, "codex");
     await writeFile(fakeCodexPath, fakeCodexScript(), "utf8");
     await chmod(fakeCodexPath, 0o755);
-    process.env.PATH = `${fakeBin}${path.delimiter}${originalPath ?? ""}`;
+    process.env["PATH"] = `${fakeBin}${path.delimiter}${originalPath ?? ""}`;
 
     await initProject(dir);
     const project = await loadProject(dir);
@@ -604,7 +604,7 @@ test("Codex runner marks conflict risk when baseline dirty files remain dirty", 
     assert.ok(finalTask.touched_files.includes("tracked.txt"));
     assert.equal(finalTask.conflict_risk, true);
   } finally {
-    process.env.PATH = originalPath;
+    process.env["PATH"] = originalPath;
     await rm(dir, { recursive: true, force: true });
     await rm(fakeBin, { recursive: true, force: true });
   }
@@ -631,14 +631,14 @@ test("worktree tasks explain the git baseline prerequisite", async () => {
 test("Codex runner can execute in an isolated git worktree", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-git-worktree-"));
   const fakeBin = await mkdtemp(path.join(os.tmpdir(), "cofounder-worktree-bin-"));
-  const originalPath = process.env.PATH;
+  const originalPath = process.env["PATH"];
 
   try {
     await initGitRepo(dir);
     const fakeCodexPath = path.join(fakeBin, "codex");
     await writeFile(fakeCodexPath, fakeCodexScript(), "utf8");
     await chmod(fakeCodexPath, 0o755);
-    process.env.PATH = `${fakeBin}${path.delimiter}${originalPath ?? ""}`;
+    process.env["PATH"] = `${fakeBin}${path.delimiter}${originalPath ?? ""}`;
 
     await initProject(dir);
     await writeFile(path.join(dir, ".cofounder/members/backend/settings.toml"), `model = "gpt-5.5"
@@ -697,7 +697,7 @@ use_member_home = false
     assert.equal(appliedTask.apply_patch_path, path.join(".cofounder", "runs", finalTask.id, "apply.patch"));
     assert.deepEqual(appliedTask.applied_files, ["changed-file.txt"]);
   } finally {
-    process.env.PATH = originalPath;
+    process.env["PATH"] = originalPath;
     await rm(dir, { recursive: true, force: true });
     await rm(fakeBin, { recursive: true, force: true });
   }
@@ -706,13 +706,13 @@ use_member_home = false
 test("interrupt cancels a running task and resumes the Codex session", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-interrupt-"));
   const fakeBin = await mkdtemp(path.join(os.tmpdir(), "cofounder-interrupt-bin-"));
-  const originalPath = process.env.PATH;
+  const originalPath = process.env["PATH"];
 
   try {
     const fakeCodexPath = path.join(fakeBin, "codex");
     await writeFile(fakeCodexPath, fakeCodexScript(), "utf8");
     await chmod(fakeCodexPath, 0o755);
-    process.env.PATH = `${fakeBin}${path.delimiter}${originalPath ?? ""}`;
+    process.env["PATH"] = `${fakeBin}${path.delimiter}${originalPath ?? ""}`;
 
     await initProject(dir);
     const runningTask = await delegateMember("backend", "stay running until interrupted", {
@@ -738,7 +738,7 @@ test("interrupt cancels a running task and resumes the Codex session", async () 
     assert.match(events, /codex -a never exec resume/);
     assert.doesNotMatch(events, /codex exec resume .* -a never/);
   } finally {
-    process.env.PATH = originalPath;
+    process.env["PATH"] = originalPath;
     await rm(dir, { recursive: true, force: true });
     await rm(fakeBin, { recursive: true, force: true });
   }

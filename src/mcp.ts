@@ -63,7 +63,9 @@ function registerTools(server: McpServer): void {
       }
     },
     async ({ assignee, task, caller }) => {
-      const record = await delegateMember(assignee, task, { caller });
+      const options: Parameters<typeof delegateMember>[2] = {};
+      if (caller) options.caller = caller;
+      const record = await delegateMember(assignee, task, options);
       return jsonTextResult({
         task_id: record.id,
         status: record.status,
@@ -90,12 +92,12 @@ function registerTools(server: McpServer): void {
       }
     },
     async ({ task_id, timeout_ms, poll_interval_ms, max_chars, tail }) => {
-      const view = await waitForTaskResult(task_id, {
-        timeoutMs: timeout_ms,
-        pollIntervalMs: poll_interval_ms,
-        maxChars: max_chars,
-        tail
-      });
+      const options: Parameters<typeof waitForTaskResult>[1] = {};
+      if (timeout_ms !== undefined) options.timeoutMs = timeout_ms;
+      if (poll_interval_ms !== undefined) options.pollIntervalMs = poll_interval_ms;
+      if (max_chars !== undefined) options.maxChars = max_chars;
+      if (tail !== undefined) options.tail = tail;
+      const view = await waitForTaskResult(task_id, options);
       return jsonTextResult(formatTaskResultPayload(view));
     }
   );
@@ -112,7 +114,10 @@ function registerTools(server: McpServer): void {
       }
     },
     async ({ task_id, max_chars, tail }) => {
-      const view = await getTaskResultView(task_id, { maxChars: max_chars, tail });
+      const options: Parameters<typeof getTaskResultView>[1] = {};
+      if (max_chars !== undefined) options.maxChars = max_chars;
+      if (tail !== undefined) options.tail = tail;
+      const view = await getTaskResultView(task_id, options);
       return jsonTextResult(formatTaskResultPayload(view));
     }
   );
@@ -140,7 +145,9 @@ function registerTools(server: McpServer): void {
       }
     },
     async ({ task_id, tail }) => {
-      const entries = await readTaskLogs(task_id, { tail });
+      const options: Parameters<typeof readTaskLogs>[1] = {};
+      if (tail !== undefined) options.tail = tail;
+      const entries = await readTaskLogs(task_id, options);
       return textResult(entries.map(formatLogEntry).join("\n") || "(no events)");
     }
   );

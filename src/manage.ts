@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { stringify as stringifyToml } from "smol-toml";
 import YAML from "yaml";
@@ -182,8 +182,8 @@ export async function addMcpServer(startDir: string, options: McpAddOptions): Pr
   const serverConfig: Record<string, unknown> = options.url
     ? { url: options.url }
     : { command: options.command, args: options.args ?? [] };
-  if (options.cwd) serverConfig.cwd = options.cwd;
-  if (options.env && Object.keys(options.env).length > 0) serverConfig.env = options.env;
+  if (options.cwd) serverConfig["cwd"] = options.cwd;
+  if (options.env && Object.keys(options.env).length > 0) serverConfig["env"] = options.env;
 
   const serverPath = path.join(project.configRoot, "mcp", `${options.id}.toml`);
   await mkdir(path.dirname(serverPath), { recursive: true });
@@ -210,18 +210,21 @@ export async function assignMcpServer(startDir: string, serverId: string, source
   for (const memberId of members) {
     const member = getMember(project, memberId);
     const settings = await loadMemberSettings(project, member);
-    settings.mcp = {
+    const previousMcp = settings.mcp;
+    const nextMcp: NonNullable<MemberSettings["mcp"]> = {
       mode: "isolated",
-      from_main: settings.mcp?.from_main ?? [],
-      team: settings.mcp?.team ?? [],
-      config_path: settings.mcp?.config_path,
-      include_inline_env: settings.mcp?.include_inline_env,
-      oauth_credentials_store: settings.mcp?.oauth_credentials_store
+      from_main: previousMcp?.from_main ?? [],
+      team: previousMcp?.team ?? []
     };
+    if (previousMcp?.config_path) nextMcp.config_path = previousMcp.config_path;
+    if (previousMcp?.include_inline_env !== undefined) nextMcp.include_inline_env = previousMcp.include_inline_env;
+    if (previousMcp?.oauth_credentials_store) nextMcp.oauth_credentials_store = previousMcp.oauth_credentials_store;
+    settings.mcp = nextMcp;
+
     const key = source === "main" ? "from_main" : "team";
-    settings.mcp[key] = addUnique(settings.mcp[key] ?? [], serverId);
-    if (source === "main" && !settings.mcp.oauth_credentials_store) {
-      settings.mcp.oauth_credentials_store = "keyring";
+    nextMcp[key] = addUnique(nextMcp[key] ?? [], serverId);
+    if (source === "main" && !nextMcp.oauth_credentials_store) {
+      nextMcp.oauth_credentials_store = "keyring";
     }
     const paths = getMemberPaths(project, member);
     await writeFile(paths.settingsAbsolutePath, formatMemberSettings(settings), "utf8");
@@ -297,16 +300,19 @@ export async function assignSkill(startDir: string, skillId: string, source: Ski
   for (const memberId of members) {
     const member = getMember(project, memberId);
     const settings = await loadMemberSettings(project, member);
-    settings.skills = {
+    const previousSkills = settings.skills;
+    const nextSkills: NonNullable<MemberSettings["skills"]> = {
       mode: "isolated",
-      from_project: settings.skills?.from_project ?? [],
-      from_main: settings.skills?.from_main ?? [],
-      team: settings.skills?.team ?? [],
-      roots: settings.skills?.roots,
-      max_bytes: settings.skills?.max_bytes
+      from_project: previousSkills?.from_project ?? [],
+      from_main: previousSkills?.from_main ?? [],
+      team: previousSkills?.team ?? []
     };
+    if (previousSkills?.roots) nextSkills.roots = previousSkills.roots;
+    if (previousSkills?.max_bytes !== undefined) nextSkills.max_bytes = previousSkills.max_bytes;
+    settings.skills = nextSkills;
+
     const key = source === "project" ? "from_project" : source === "main" ? "from_main" : "team";
-    settings.skills[key] = addUnique(settings.skills[key] ?? [], skillId);
+    nextSkills[key] = addUnique(nextSkills[key] ?? [], skillId);
     const paths = getMemberPaths(project, member);
     await writeFile(paths.settingsAbsolutePath, formatMemberSettings(settings), "utf8");
     changed.push(paths.settingsPath);

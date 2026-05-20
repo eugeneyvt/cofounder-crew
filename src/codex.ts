@@ -82,8 +82,8 @@ export function buildCodexCommand(
   const env = { ...process.env };
   if (useMemberHome && member.home) {
     const memberHome = path.resolve(task.config_root, member.home);
-    env.CODEX_HOME = memberHome;
-    env.HOME = memberHome;
+    env["CODEX_HOME"] = memberHome;
+    env["HOME"] = memberHome;
   }
 
   return {
@@ -120,7 +120,7 @@ export async function runCodexTask(
     time: new Date().toISOString(),
     task_id: current.id,
     type: "runner.environment",
-    message: `cwd=${command.cwd} CODEX_HOME=${command.env.CODEX_HOME ?? "default"} HOME=${command.env.HOME ?? "default"}`
+    message: `cwd=${command.cwd} CODEX_HOME=${command.env["CODEX_HOME"] ?? "default"} HOME=${command.env["HOME"] ?? "default"}`
   });
   await appendTaskEvent(task.cwd, current, {
     time: new Date().toISOString(),
@@ -141,9 +141,11 @@ export async function runCodexTask(
     let stdoutBuffer = "";
     let stderrBuffer = "";
 
-    void updateTask(task.cwd, current.id, { runner_pid: child.pid }).then((updated) => {
-      current = updated;
-    });
+    if (child.pid !== undefined) {
+      void updateTask(task.cwd, current.id, { runner_pid: child.pid }).then((updated) => {
+        current = updated;
+      });
+    }
 
     child.stdin.end(prompt);
 
@@ -293,17 +295,17 @@ function extractCodexSessionId(line: string): string | undefined {
       return undefined;
     }
 
-    const topLevel = firstString(raw.session_id, raw.thread_id, raw.conversation_id);
+    const topLevel = firstString(raw["session_id"], raw["thread_id"], raw["conversation_id"]);
     if (topLevel) {
       return topLevel;
     }
 
-    const payload = raw.payload;
+    const payload = raw["payload"];
     if (isRecord(payload)) {
-      if (raw.type === "session_meta") {
-        return firstString(payload.id, payload.session_id, payload.thread_id);
+      if (raw["type"] === "session_meta") {
+        return firstString(payload["id"], payload["session_id"], payload["thread_id"]);
       }
-      return firstString(payload.session_id, payload.thread_id, payload.conversation_id);
+      return firstString(payload["session_id"], payload["thread_id"], payload["conversation_id"]);
     }
   } catch {
     return undefined;
@@ -331,7 +333,7 @@ function normalizeCodexOutputLine(taskId: string, line: string, fallbackType: "s
   try {
     const raw = JSON.parse(line) as unknown;
     if (isRecord(raw)) {
-      const rawType = firstString(raw.type, raw.event, raw.name) ?? fallbackType;
+      const rawType = firstString(raw["type"], raw["event"], raw["name"]) ?? fallbackType;
       return {
         time,
         task_id: taskId,
@@ -377,7 +379,7 @@ function extractMessage(raw: Record<string, unknown>): string | undefined {
     }
   }
 
-  const nested = raw.item ?? raw.data ?? raw.payload;
+  const nested = raw["item"] ?? raw["data"] ?? raw["payload"];
   if (isRecord(nested)) {
     return extractMessage(nested);
   }

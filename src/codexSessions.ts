@@ -9,7 +9,7 @@ export async function findRecentCodexSessionId(options: {
   since: string | null;
   codexHome?: string;
 }): Promise<string | null> {
-  const sessionsRoot = path.join(options.codexHome ?? process.env.CODEX_HOME ?? path.join(os.homedir(), ".codex"), "sessions");
+  const sessionsRoot = path.join(options.codexHome ?? process.env["CODEX_HOME"] ?? path.join(os.homedir(), ".codex"), "sessions");
   const candidates = await listCandidateSessionFiles(sessionsRoot, options.since);
   const sinceMs = options.since ? Date.parse(options.since) - 60_000 : 0;
 
@@ -69,18 +69,21 @@ async function readSessionMeta(filePath: string): Promise<{ id: string; cwd: str
   try {
     for await (const line of reader) {
       const raw = JSON.parse(line) as unknown;
-      if (!isRecord(raw) || raw.type !== "session_meta" || !isRecord(raw.payload)) {
+      if (!isRecord(raw) || raw["type"] !== "session_meta" || !isRecord(raw["payload"])) {
         return null;
       }
-      const id = raw.payload.id;
-      const cwd = raw.payload.cwd;
-      const timestamp = raw.payload.timestamp;
+      const id = raw["payload"]["id"];
+      const cwd = raw["payload"]["cwd"];
+      const timestamp = raw["payload"]["timestamp"];
       if (typeof id === "string" && typeof cwd === "string") {
-        return {
+        const meta: { id: string; cwd: string; timestamp?: string } = {
           id,
-          cwd,
-          timestamp: typeof timestamp === "string" ? timestamp : undefined
+          cwd
         };
+        if (typeof timestamp === "string") {
+          meta.timestamp = timestamp;
+        }
+        return meta;
       }
       return null;
     }

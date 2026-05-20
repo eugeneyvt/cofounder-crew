@@ -30,19 +30,19 @@
   "exports": {
     ".": {
       "types": "./dist/src/runtime.d.ts",
-      "default": "./dist/src/runtime.js"
+      "import": "./dist/src/runtime.js"
     },
     "./init": {
       "types": "./dist/src/init.d.ts",
-      "default": "./dist/src/init.js"
+      "import": "./dist/src/init.js"
     },
     "./setup": {
       "types": "./dist/src/setup.d.ts",
-      "default": "./dist/src/setup.js"
+      "import": "./dist/src/setup.js"
     },
     "./templates": {
       "types": "./dist/src/templates.d.ts",
-      "default": "./dist/src/templates.js"
+      "import": "./dist/src/templates.js"
     }
   },
   "bin": {
@@ -51,9 +51,11 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && chmod +x dist/src/cli.js dist/src/mcp.js dist/src/worker.js",
-    "check": "tsc -p tsconfig.json --noEmit",
+    "check": "tsc -p tsconfig.json --noEmit && node scripts/check-ts-hygiene.mjs",
+    "check:package": "npm run build && publint run --strict && publint run packages/create-cofounder --strict",
     "test": "tsx --test tests/*.test.ts",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run check && npm test && npm run check:package"
   },
   "workspaces": [
     "packages/*"
@@ -66,6 +68,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
+    "publint": "^0.3.21",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   },

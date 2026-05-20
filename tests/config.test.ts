@@ -105,12 +105,14 @@ Keep changes small.
     assert.match(projectContext, /Keep changes small/);
     assert.doesNotMatch(projectContext, /Cofounder\/orchestrator/);
     assert.equal(result.notices.length, 1);
-    assert.match(result.notices[0], /add this block to AGENTS\.md/);
-    assert.match(result.notices[0], /Read \.cofounder\/codex-instructions\.md/);
-    assert.match(result.notices[0], /Cofounder\/orchestrator/);
-    assert.match(result.notices[0], /proactively delegate substantive work/);
-    assert.match(result.notices[0], /Do not perform specialist work yourself/);
-    assert.match(result.notices[0], /\.cofounder\/project\.md/);
+    const notice = result.notices[0];
+    assert.ok(notice);
+    assert.match(notice, /add this block to AGENTS\.md/);
+    assert.match(notice, /Read \.cofounder\/codex-instructions\.md/);
+    assert.match(notice, /Cofounder\/orchestrator/);
+    assert.match(notice, /proactively delegate substantive work/);
+    assert.match(notice, /Do not perform specialist work yourself/);
+    assert.match(notice, /\.cofounder\/project\.md/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

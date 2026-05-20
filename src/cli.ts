@@ -27,7 +27,6 @@ import {
 import { startMcpServer } from "./mcp.js";
 import { CONFIG_DIR, findProjectRoot, pathExists } from "./paths.js";
 import { formatCodexSetup, installCodexMcp } from "./setup.js";
-import { listProjectTemplates } from "./templates.js";
 import {
   applyTaskPatch,
   cancelTask,
@@ -46,6 +45,7 @@ import {
   runMember,
   runWorkerTask
 } from "./runtime.js";
+import type { MemberSettings, WorkMode } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -364,7 +364,7 @@ async function commandStart(args: string[]): Promise<void> {
   const yes = options.flags.has("yes") || options.flags.has("y");
   const interactive = process.stdin.isTTY && process.stdout.isTTY && !yes;
   const root = process.cwd();
-  let template = options.values.template ?? "default";
+  let template = options.values["template"] ?? "default";
   let setupCodex = options.flags.has("setup-codex");
 
   printHeader("Cofounder Start");
@@ -414,7 +414,7 @@ async function commandAdd(args: string[]): Promise<void> {
 
 async function commandInit(args: string[]): Promise<void> {
   const options = parseOptions(args);
-  const template = options.values.template ?? "default";
+  const template = options.values["template"] ?? "default";
   const result = await initProject(process.cwd(), { template });
   printResult(`Initialized ${result.template} template`, result.created, result.skipped, result.notices);
   if (options.flags.has("setup-codex")) {
@@ -534,33 +534,43 @@ async function commandMemberShow(args: string[]): Promise<void> {
 async function commandMemberAdd(args: string[]): Promise<void> {
   const options = parseOptions(args);
   const id = options.positionals[0] ?? await askRequired("Member id");
-  const result = await addMember(process.cwd(), {
+  const addOptions: Parameters<typeof addMember>[1] = {
     id,
-    title: options.values.title,
-    model: options.values.model,
-    reasoning_effort: options.values.reasoning,
-    sandbox: options.values.sandbox as never,
-    approval: options.values.approval,
-    write_mode: options.values["write-mode"] as never,
-    responsibilities: valuesOrList(options.repeated.responsibility),
     can_call: csv(options.values["can-call"])
-  });
+  };
+  if (options.values["title"]) addOptions.title = options.values["title"];
+  if (options.values["model"]) addOptions.model = options.values["model"];
+  if (options.values["reasoning"]) addOptions.reasoning_effort = options.values["reasoning"];
+  const sandbox = normalizeSandbox(options.values["sandbox"]);
+  if (sandbox) addOptions.sandbox = sandbox;
+  if (options.values["approval"]) addOptions.approval = options.values["approval"];
+  const writeMode = normalizeWriteMode(options.values["write-mode"]);
+  if (writeMode) addOptions.write_mode = writeMode;
+  const responsibilities = valuesOrList(options.repeated["responsibility"]);
+  if (responsibilities) addOptions.responsibilities = responsibilities;
+
+  const result = await addMember(process.cwd(), addOptions);
   printChangeResult(result);
 }
 
 async function commandMemberSet(args: string[]): Promise<void> {
   const options = parseOptions(args);
   const memberId = requiredArg(options.positionals[0], "member");
-  const result = await setMember(process.cwd(), memberId, {
-    model: options.values.model,
-    reasoning_effort: options.values.reasoning,
-    sandbox: options.values.sandbox as never,
-    approval: options.values.approval,
-    write_mode: options.values["write-mode"] as never,
-    mcp_mode: options.values["mcp-mode"] as never,
-    mcp_oauth_credentials_store: options.values["mcp-oauth-store"],
-    skills_mode: options.values["skills-mode"] as never
-  });
+  const setOptions: Parameters<typeof setMember>[2] = {};
+  if (options.values["model"]) setOptions.model = options.values["model"];
+  if (options.values["reasoning"]) setOptions.reasoning_effort = options.values["reasoning"];
+  const sandbox = normalizeSandbox(options.values["sandbox"]);
+  if (sandbox) setOptions.sandbox = sandbox;
+  if (options.values["approval"]) setOptions.approval = options.values["approval"];
+  const writeMode = normalizeWriteMode(options.values["write-mode"]);
+  if (writeMode) setOptions.write_mode = writeMode;
+  const mcpMode = normalizeMcpMode(options.values["mcp-mode"]);
+  if (mcpMode) setOptions.mcp_mode = mcpMode;
+  if (options.values["mcp-oauth-store"]) setOptions.mcp_oauth_credentials_store = options.values["mcp-oauth-store"];
+  const skillsMode = normalizeSkillsMode(options.values["skills-mode"]);
+  if (skillsMode) setOptions.skills_mode = skillsMode;
+
+  const result = await setMember(process.cwd(), memberId, setOptions);
   printChangeResult(result);
 }
 
@@ -590,17 +600,19 @@ async function commandMcpList(): Promise<void> {
 async function commandMcpAdd(args: string[]): Promise<void> {
   const options = parseOptions(args);
   const id = options.positionals[0] ?? await askRequired("MCP server id");
-  const url = options.values.url ?? (!options.values.command ? await askOptional("MCP URL (leave empty for command transport)") : undefined);
-  const command = options.values.command ?? (!url ? await askRequired("Command") : undefined);
-  const result = await addMcpServer(process.cwd(), {
+  const url = options.values["url"] ?? (!options.values["command"] ? await askOptional("MCP URL (leave empty for command transport)") : undefined);
+  const command = options.values["command"] ?? (!url ? await askRequired("Command") : undefined);
+  const addOptions: Parameters<typeof addMcpServer>[1] = {
     id,
-    url: url || undefined,
-    command,
-    args: options.repeated.arg ?? [],
-    cwd: options.values.cwd,
-    env: parseEnv(options.repeated.env ?? []),
-    assign: csv(options.values.assign)
-  });
+    args: options.repeated["arg"] ?? [],
+    env: parseEnv(options.repeated["env"] ?? []),
+    assign: csv(options.values["assign"])
+  };
+  if (url) addOptions.url = url;
+  if (command) addOptions.command = command;
+  if (options.values["cwd"]) addOptions.cwd = options.values["cwd"];
+
+  const result = await addMcpServer(process.cwd(), addOptions);
   printChangeResult(result);
 }
 
@@ -608,7 +620,7 @@ async function commandMcpAssign(args: string[]): Promise<void> {
   const options = parseOptions(args);
   const server = requiredArg(options.positionals[0], "server");
   const members = csv(requiredArg(options.positionals[1], "member[,member]"));
-  const source = (options.values.source ?? "team") as McpSource;
+  const source = normalizeMcpSource(options.values["source"] ?? "team");
   const result = await assignMcpServer(process.cwd(), server, source, members);
   printChangeResult(result);
 }
@@ -633,13 +645,15 @@ async function commandSkillList(): Promise<void> {
 async function commandSkillAdd(args: string[]): Promise<void> {
   const options = parseOptions(args);
   const id = options.positionals[0] ?? await askRequired("Skill id");
-  const source = normalizeSkillSource(options.values.scope ?? await choose("Skill scope", ["project", "team", "main"], "project"));
-  const result = await addSkill(process.cwd(), {
+  const source = normalizeSkillSource(options.values["scope"] ?? await choose("Skill scope", ["project", "team", "main"], "project"));
+  const addOptions: Parameters<typeof addSkill>[1] = {
     id,
     source,
-    description: options.values.description,
-    assign: csv(options.values.assign)
-  });
+    assign: csv(options.values["assign"])
+  };
+  if (options.values["description"]) addOptions.description = options.values["description"];
+
+  const result = await addSkill(process.cwd(), addOptions);
   printChangeResult(result);
 }
 
@@ -647,14 +661,14 @@ async function commandSkillAssign(args: string[]): Promise<void> {
   const options = parseOptions(args);
   const skill = requiredArg(options.positionals[0], "skill");
   const members = csv(requiredArg(options.positionals[1], "member[,member]"));
-  const source = normalizeSkillSource(options.values.scope ?? "project");
+  const source = normalizeSkillSource(options.values["scope"] ?? "project");
   printChangeResult(await assignSkill(process.cwd(), skill, source, members));
 }
 
 async function commandSkillRemove(args: string[]): Promise<void> {
   const options = parseOptions(args);
   const skill = requiredArg(options.positionals[0], "skill");
-  const source = normalizeSkillSource(options.values.scope ?? "project");
+  const source = normalizeSkillSource(options.values["scope"] ?? "project");
   await confirmUnlessYes(options, `Remove skill ${skill} assignments?`);
   printChangeResult(await removeSkill(process.cwd(), skill, source, { deleteFiles: options.flags.has("delete-files") }));
 }
@@ -706,7 +720,7 @@ async function commandTaskList(args: string[]): Promise<void> {
     console.log("No tasks yet.");
     return;
   }
-  const limit = Number(options.values.limit ?? "20");
+  const limit = Number(options.values["limit"] ?? "20");
   const tasks = (await readdir(runsDir, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
@@ -722,7 +736,7 @@ async function commandTaskList(args: string[]): Promise<void> {
 async function commandTaskLogs(args: string[]): Promise<void> {
   const options = parseOptions(args);
   const taskId = requiredArg(options.positionals[0], "task_id");
-  const tail = Number(options.values.tail ?? "50");
+  const tail = Number(options.values["tail"] ?? "50");
   const entries = await readTaskLogs(taskId, { tail });
   for (const entry of entries) console.log(formatLogEntry(entry));
 }
@@ -842,10 +856,10 @@ async function readPackageInfo(projectRoot: string): Promise<{ path: string; dat
 }
 
 function getCofounderDependencyType(packageJson: Record<string, unknown>): "dependencies" | "devDependencies" | null {
-  if (hasPackageDependency(packageJson.devDependencies)) {
+  if (hasPackageDependency(packageJson["devDependencies"])) {
     return "devDependencies";
   }
-  if (hasPackageDependency(packageJson.dependencies)) {
+  if (hasPackageDependency(packageJson["dependencies"])) {
     return "dependencies";
   }
   return null;
@@ -877,7 +891,8 @@ async function runLoggedCommand(command: string, args: string[], cwd: string): P
 async function commandCheck(command: string, args: string[], name: string): Promise<{ name: string; ok: boolean; detail?: string }> {
   try {
     const { stdout } = await execFileAsync(command, args, { timeout: 5_000 });
-    return { name, ok: true, detail: stdout.trim().split("\n")[0] };
+    const detail = stdout.trim().split("\n")[0];
+    return detail ? { name, ok: true, detail } : { name, ok: true };
   } catch (error) {
     return { name, ok: false, detail: error instanceof Error ? error.message : String(error) };
   }
@@ -903,7 +918,7 @@ function parseMemberTask(args: string[]): { memberId: string; task: string; call
   const memberId = requiredArg(options.positionals[0], "member");
   const task = options.positionals.slice(1).join(" ").trim();
   if (!task) throw new CofounderError("Missing task text");
-  return { memberId, task, caller: options.values.caller ?? PRIMARY_CALLER };
+  return { memberId, task, caller: options.values["caller"] ?? PRIMARY_CALLER };
 }
 
 function matchCommand(argv: string[]): { command: CommandDefinition; args: string[] } | null {
@@ -999,6 +1014,9 @@ function parseOptions(args: string[]): { positionals: string[]; values: Record<s
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === undefined) {
+      break;
+    }
     if (arg === "-y") {
       flags.add("y");
       continue;
@@ -1043,6 +1061,53 @@ function requiredArg(value: string | undefined, name: string): string {
 function normalizeSkillSource(value: string): SkillSource {
   if (value !== "project" && value !== "main" && value !== "team") {
     throw new CofounderError("skill scope must be project, team, or main");
+  }
+  return value;
+}
+
+function normalizeMcpSource(value: string): McpSource {
+  if (value !== "main" && value !== "team") {
+    throw new CofounderError("MCP source must be main or team");
+  }
+  return value;
+}
+
+function normalizeSandbox(value: string | undefined): MemberSettings["sandbox"] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value !== "read-only" && value !== "workspace-write" && value !== "danger-full-access") {
+    throw new CofounderError("sandbox must be read-only, workspace-write, or danger-full-access");
+  }
+  return value;
+}
+
+function normalizeWriteMode(value: string | undefined): WorkMode | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value !== "direct" && value !== "worktree") {
+    throw new CofounderError("write mode must be direct or worktree");
+  }
+  return value;
+}
+
+function normalizeMcpMode(value: string | undefined): NonNullable<NonNullable<MemberSettings["mcp"]>["mode"]> | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value !== "inherit" && value !== "none" && value !== "allowlist" && value !== "isolated") {
+    throw new CofounderError("MCP mode must be inherit, none, allowlist, or isolated");
+  }
+  return value;
+}
+
+function normalizeSkillsMode(value: string | undefined): NonNullable<NonNullable<MemberSettings["skills"]>["mode"]> | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value !== "inherit" && value !== "none" && value !== "allowlist" && value !== "isolated") {
+    throw new CofounderError("skills mode must be inherit, none, allowlist, or isolated");
   }
   return value;
 }

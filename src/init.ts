@@ -71,9 +71,13 @@ export async function initProject(projectRoot = process.cwd(), options: { templa
   }
 
   for (const member of template.members) {
+    const prompt = template.prompts[member];
+    const settings = template.settings[member];
+    assertCondition(prompt, `Template prompt missing for ${member}`);
+    assertCondition(settings, `Template settings missing for ${member}`);
     await ensureDir(`${CONFIG_DIR}/members/${member}/home`);
-    await ensureFile(`${CONFIG_DIR}/members/${member}/prompt.md`, template.prompts[member]);
-    await ensureFile(`${CONFIG_DIR}/members/${member}/settings.toml`, template.settings[member]);
+    await ensureFile(`${CONFIG_DIR}/members/${member}/prompt.md`, prompt);
+    await ensureFile(`${CONFIG_DIR}/members/${member}/settings.toml`, settings);
     await ensureFile(`${CONFIG_DIR}/memory/members/${member}.md`, `# ${member} Memory\n\n`);
   }
 

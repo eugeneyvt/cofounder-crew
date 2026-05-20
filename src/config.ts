@@ -90,17 +90,17 @@ export function summarizeTeam(project: LoadedProject): string {
 
 function normalizeTeamFile(input: unknown): TeamFile {
   assertCondition(isRecord(input), "team.yaml must be a YAML object");
-  assertCondition(input.version === 1, "team.yaml version must be 1");
-  assertCondition(isRecord(input.members), "team.yaml must define members");
+  assertCondition(input["version"] === 1, "team.yaml version must be 1");
+  assertCondition(isRecord(input["members"]), "team.yaml must define members");
 
-  const defaults = isRecord(input.defaults) ? input.defaults : {};
-  const projectContext = isRecord(input.project_context) ? input.project_context : {};
-  const defaultRunner = normalizeRunner(defaults.runner ?? "codex");
+  const defaults = isRecord(input["defaults"]) ? input["defaults"] : {};
+  const projectContext = isRecord(input["project_context"]) ? input["project_context"] : {};
+  const defaultRunner = normalizeRunner(defaults["runner"] ?? "codex");
   const members: Record<string, MemberDefinition> = {};
 
-  for (const [id, rawMember] of Object.entries(input.members)) {
+  for (const [id, rawMember] of Object.entries(input["members"])) {
     assertCondition(isRecord(rawMember), `Member ${id} must be an object`);
-    const runner = normalizeRunner(rawMember.runner ?? defaultRunner);
+    const runner = normalizeRunner(rawMember["runner"] ?? defaultRunner);
     const title = stringField(rawMember, "title", id);
     const prompt = stringField(rawMember, "prompt", id);
     const settings = stringField(rawMember, "settings", id);
@@ -108,35 +108,50 @@ function normalizeTeamFile(input: unknown): TeamFile {
     const can_call = optionalStringListField(rawMember, "can_call", id);
     const home = optionalStringField(rawMember, "home", id);
 
-    members[id] = {
+    const member: MemberDefinition = {
       id,
       title,
       runner,
       prompt,
       settings,
-      home,
       responsibilities,
       can_call
     };
+    if (home) {
+      member.home = home;
+    }
+    members[id] = member;
   }
 
-  return {
+  const normalized: TeamFile = {
     version: 1,
-    team: isRecord(input.team) ? {
-      id: optionalStringValue(input.team.id),
-      name: optionalStringValue(input.team.name)
-    } : undefined,
     project_context: {
-      mode: normalizeProjectContextMode(projectContext.mode ?? "auto"),
-      file: optionalStringValue(projectContext.file) ?? "project.md"
+      mode: normalizeProjectContextMode(projectContext["mode"] ?? "auto"),
+      file: optionalStringValue(projectContext["file"]) ?? "project.md"
     },
     defaults: {
-      runner: defaultRunner,
-      cwd: defaults.cwd === "inherit" || defaults.cwd === undefined ? "inherit" : undefined,
-      run_mode: defaults.run_mode === "sync" || defaults.run_mode === "async" ? defaults.run_mode : undefined
+      runner: defaultRunner
     },
     members
   };
+
+  if (isRecord(input["team"])) {
+    const team: NonNullable<TeamFile["team"]> = {};
+    const id = optionalStringValue(input["team"]["id"]);
+    const name = optionalStringValue(input["team"]["name"]);
+    if (id) team.id = id;
+    if (name) team.name = name;
+    normalized.team = team;
+  }
+
+  if (defaults["cwd"] === "inherit" || defaults["cwd"] === undefined) {
+    normalized.defaults = { ...normalized.defaults, cwd: "inherit" };
+  }
+  if (defaults["run_mode"] === "sync" || defaults["run_mode"] === "async") {
+    normalized.defaults = { ...normalized.defaults, run_mode: defaults["run_mode"] };
+  }
+
+  return normalized;
 }
 
 function normalizeProjectContextMode(value: unknown): ProjectContextMode {

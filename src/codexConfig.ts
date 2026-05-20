@@ -21,7 +21,7 @@ export interface PreparedCodexConfig {
 
 export async function prepareCodexConfig(
   project: LoadedProject,
-  member: MemberDefinition,
+  _member: MemberDefinition,
   settings: MemberSettings,
   memberHomeAbsolutePath: string | null,
   options: { disabledSkillPaths?: string[] } = {}
@@ -119,7 +119,7 @@ async function loadSelectedMainMcpServers(
 
   const raw = await readFile(configPath, "utf8");
   const parsed = parseToml(raw) as unknown;
-  const mcpServers = isRecord(parsed) && isRecord(parsed.mcp_servers) ? parsed.mcp_servers : {};
+  const mcpServers = isRecord(parsed) && isRecord(parsed["mcp_servers"]) ? parsed["mcp_servers"] : {};
   const selected: Record<string, Record<string, unknown>> = {};
   const missing: string[] = [];
 
@@ -184,7 +184,7 @@ function resolveBaseCodexConfigPath(project: LoadedProject, settings: MemberSett
     return resolveUserPath(settings.mcp.config_path, project.projectRoot);
   }
 
-  const codexHome = process.env.CODEX_HOME ? path.resolve(process.env.CODEX_HOME) : path.join(os.homedir(), ".codex");
+  const codexHome = process.env["CODEX_HOME"] ? path.resolve(process.env["CODEX_HOME"]) : path.join(os.homedir(), ".codex");
   return path.join(codexHome, "config.toml");
 }
 
@@ -220,8 +220,8 @@ function sanitizeMcpServerDefinition(definition: Record<string, unknown>, includ
     }
   }
 
-  if (includeInlineEnv && isRecord(definition.env)) {
-    sanitized.env = definition.env;
+  if (includeInlineEnv && isRecord(definition["env"])) {
+    sanitized["env"] = definition["env"];
   }
 
   return sanitized;
@@ -235,19 +235,19 @@ function buildCodexConfig(
 ): string {
   const config: Record<string, unknown> = {};
   if (settings.model) {
-    config.model = settings.model;
+    config["model"] = settings.model;
   }
   if (settings.reasoning_effort) {
-    config.model_reasoning_effort = settings.reasoning_effort;
+    config["model_reasoning_effort"] = settings.reasoning_effort;
   }
   if (oauthCredentialsStore) {
-    config.mcp_oauth_credentials_store = oauthCredentialsStore;
+    config["mcp_oauth_credentials_store"] = oauthCredentialsStore;
   }
   if (Object.keys(selectedServers).length > 0) {
-    config.mcp_servers = selectedServers;
+    config["mcp_servers"] = selectedServers;
   }
   if (disabledSkillPaths.length > 0) {
-    config.skills = {
+    config["skills"] = {
       config: disabledSkillPaths.map((skillPath) => ({
         path: skillPath,
         enabled: false

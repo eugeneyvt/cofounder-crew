@@ -196,7 +196,7 @@ exit 0
       ...process.env,
       FAKE_NPM_LOG: npmLog,
       FAKE_CODEX_LOG: codexLog,
-      PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ""}`
+      PATH: `${binDir}${path.delimiter}${process.env["PATH"] ?? ""}`
     }
   };
 }

@@ -55,9 +55,7 @@ export function getCapabilities(): RunnerCapabilities[] {
 
 export async function listTeam(startDir = process.cwd()): Promise<TeamSummary> {
   const project = await loadProject(startDir);
-  return {
-    id: project.team.team?.id,
-    name: project.team.team?.name,
+  const summary: TeamSummary = {
     project_root: project.projectRoot,
     members: Object.values(project.team.members).map((member) => {
       const paths = getMemberPaths(project, member);
@@ -72,6 +70,9 @@ export async function listTeam(startDir = process.cwd()): Promise<TeamSummary> {
       };
     })
   };
+  if (project.team.team?.id) summary.id = project.team.team.id;
+  if (project.team.team?.name) summary.name = project.team.team.name;
+  return summary;
 }
 
 export async function runMember(
@@ -97,11 +98,14 @@ export async function runMember(
     member_codex_config_path: runtime.member_codex_config_path,
     work_mode: workMode
   }, prompt);
-  return await runCodexTask(record, runtime.member, runtime.settings, {
-    streamToConsole: options.streamToConsole,
+  const runOptions: Parameters<typeof runCodexTask>[3] = {
     codexConfig: runtime.codex_config,
     skills: runtime.skills
-  });
+  };
+  if (options.streamToConsole !== undefined) {
+    runOptions.streamToConsole = options.streamToConsole;
+  }
+  return await runCodexTask(record, runtime.member, runtime.settings, runOptions);
 }
 
 export async function delegateMember(
@@ -196,11 +200,12 @@ export async function waitForTaskResult(
     task = await readTask(project.projectRoot, taskId);
   }
 
-  return await buildTaskResultView(project.projectRoot, task, {
-    maxChars: options.maxChars,
-    tail: options.tail,
+  const viewOptions: Parameters<typeof buildTaskResultView>[2] = {
     timedOut: !isTerminalStatus(task.status)
-  });
+  };
+  if (options.maxChars !== undefined) viewOptions.maxChars = options.maxChars;
+  if (options.tail !== undefined) viewOptions.tail = options.tail;
+  return await buildTaskResultView(project.projectRoot, task, viewOptions);
 }
 
 export async function readTaskPatch(taskId: string, startDir = process.cwd()): Promise<string> {
@@ -502,7 +507,9 @@ async function startWorker(project: LoadedProject, record: TaskRecord): Promise<
   });
 
   child.unref();
-  await updateTask(project.projectRoot, record.id, { worker_pid: child.pid });
+  if (child.pid !== undefined) {
+    await updateTask(project.projectRoot, record.id, { worker_pid: child.pid });
+  }
 }
 
 async function resolveWorkerCommand(taskId: string): Promise<{ command: string; args: string[] }> {

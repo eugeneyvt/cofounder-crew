@@ -130,7 +130,7 @@ function stripCofounderOrchestration(content: string): string {
         continue;
       }
 
-      const level = heading[1].length;
+      const level = (heading[1] ?? "").length;
       if (level > skipLevel) {
         continue;
       }
@@ -139,8 +139,8 @@ function stripCofounderOrchestration(content: string): string {
     }
 
     if (heading) {
-      const level = heading[1].length;
-      const headingTitle = heading[2].trim().toLowerCase();
+      const level = (heading[1] ?? "").length;
+      const headingTitle = (heading[2] ?? "").trim().toLowerCase();
 
       if (headingTitle === "cofounder crew") {
         cofounderLevel = level;

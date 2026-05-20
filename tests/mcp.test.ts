@@ -73,7 +73,7 @@ test("MCP team.delegate starts a delegated Codex task", async () => {
     command: path.join(repoRoot, "node_modules/.bin/tsx"),
     args: [path.join(repoRoot, "src/mcp.ts")],
     cwd: dir,
-    env: testEnv({ PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ""}` }),
+    env: testEnv({ PATH: `${fakeBin}${path.delimiter}${process.env["PATH"] ?? ""}` }),
     stderr: "pipe"
   });
   const client = new Client({ name: "cofounder-test", version: "0.1.0" });
@@ -159,7 +159,7 @@ test("MCP team.wait returns running guidance on timeout", async () => {
     command: path.join(repoRoot, "node_modules/.bin/tsx"),
     args: [path.join(repoRoot, "src/mcp.ts")],
     cwd: dir,
-    env: testEnv({ PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ""}` }),
+    env: testEnv({ PATH: `${fakeBin}${path.delimiter}${process.env["PATH"] ?? ""}` }),
     stderr: "pipe"
   });
   const client = new Client({ name: "cofounder-test", version: "0.1.0" });
@@ -227,7 +227,7 @@ test("MCP team.cancel cancels a running delegated task", async () => {
     command: path.join(repoRoot, "node_modules/.bin/tsx"),
     args: [path.join(repoRoot, "src/mcp.ts")],
     cwd: dir,
-    env: testEnv({ PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ""}` }),
+    env: testEnv({ PATH: `${fakeBin}${path.delimiter}${process.env["PATH"] ?? ""}` }),
     stderr: "pipe"
   });
   const client = new Client({ name: "cofounder-test", version: "0.1.0" });

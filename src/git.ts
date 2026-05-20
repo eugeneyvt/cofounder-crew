@@ -125,6 +125,9 @@ function parsePorcelainFiles(output: string): string[] {
 
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index];
+    if (entry === undefined) {
+      continue;
+    }
     const status = entry.slice(0, 2);
     const file = entry.slice(3);
 

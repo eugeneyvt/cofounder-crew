@@ -70,10 +70,10 @@ function buildEffectiveConfig(
 ): string {
   const codex: Record<string, unknown> = {};
   if (settings.model) {
-    codex.model = settings.model;
+    codex["model"] = settings.model;
   }
   if (settings.reasoning_effort) {
-    codex.model_reasoning_effort = settings.reasoning_effort;
+    codex["model_reasoning_effort"] = settings.reasoning_effort;
   }
 
   const cofounder: Record<string, unknown> = {
@@ -97,13 +97,13 @@ function buildEffectiveConfig(
     skill_codex_root: skills.codex_skill_root ?? ""
   };
   if (settings.sandbox) {
-    cofounder.sandbox = settings.sandbox;
+    cofounder["sandbox"] = settings.sandbox;
   }
   if (settings.approval) {
-    cofounder.approval = settings.approval;
+    cofounder["approval"] = settings.approval;
   }
   if (settings.live_interrupt !== undefined) {
-    cofounder.live_interrupt = settings.live_interrupt;
+    cofounder["live_interrupt"] = settings.live_interrupt;
   }
 
   const runnerCodex = settings.runner?.codex ?? {};
@@ -123,8 +123,8 @@ function buildEffectiveConfig(
 
 async function prepareMemberCodexHome(memberHomeAbsolutePath: string): Promise<void> {
   await mkdir(memberHomeAbsolutePath, { recursive: true });
-  const sourceCodexHome = process.env.CODEX_HOME
-    ? path.resolve(process.env.CODEX_HOME)
+  const sourceCodexHome = process.env["CODEX_HOME"]
+    ? path.resolve(process.env["CODEX_HOME"])
     : path.join(os.homedir(), ".codex");
   const sourceAuthPath = path.join(sourceCodexHome, "auth.json");
   const targetAuthPath = path.join(memberHomeAbsolutePath, "auth.json");
