@@ -135,6 +135,10 @@ export interface TaskRecord {
   new_changed_files: string[];
   touched_files: string[];
   conflict_risk: boolean;
+  worktree_patch_path?: string | null;
+  worktree_patch_files?: string[];
+  worktree_removed_at?: string | null;
+  worktree_cleanup_error?: string | null;
   apply_patch_path: string | null;
   applied_at: string | null;
   applied_files: string[];

@@ -137,7 +137,7 @@ Common settings:
 | `sandbox` | Codex sandbox mode. |
 | `approval` | Codex approval policy. |
 | `write.mode = "direct"` | Run in the main working tree. |
-| `write.mode = "worktree"` | Run in `.cofounder/worktrees/<task_id>` and review before apply. |
+| `write.mode = "worktree"` | Run in `.cofounder/worktrees/<task_id>`, persist a patch for review, then remove the worktree after apply. |
 | `include_project_doc = false` | Let Cofounder provide worker-safe project context instead of raw `AGENTS.md`. |
 
 ## MCP Scoping

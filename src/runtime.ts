@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { PRIMARY_CALLER, assertCanCall, getMember, getMemberPaths, loadProject } from "./config.js";
 import { CofounderError } from "./errors.js";
-import { applyGitPatch, checkGitPatch, createWorktreePatch } from "./git.js";
+import { applyGitPatch, checkGitPatch, createWorktreePatch, removeGitWorktree } from "./git.js";
 import { findRecentCodexSessionId } from "./codexSessions.js";
 import { prepareMemberRuntime } from "./memberRuntime.js";
 import { assemblePrompt } from "./prompt.js";
@@ -38,6 +38,8 @@ export interface ApplyTaskResult {
   task: TaskRecord;
   files: string[];
   patch_path: string;
+  worktree_removed: boolean;
+  worktree_cleanup_error: string | null;
 }
 
 export interface TaskResultView {
@@ -212,7 +214,7 @@ export async function readTaskPatch(taskId: string, startDir = process.cwd()): P
   const project = await loadProject(startDir);
   const task = await readTask(project.projectRoot, taskId);
   assertWorktreeTask(task);
-  const generated = await createWorktreePatch(task.execution_cwd);
+  const generated = await readWorktreePatch(project.projectRoot, task);
   return generated.patch;
 }
 
@@ -221,7 +223,7 @@ export async function applyTaskPatch(taskId: string, startDir = process.cwd()): 
   const task = await readTask(project.projectRoot, taskId);
   assertWorktreeTask(task);
 
-  const generated = await createWorktreePatch(task.execution_cwd);
+  const generated = await readWorktreePatch(project.projectRoot, task);
   if (generated.patch.trim().length === 0) {
     throw new CofounderError(`No worktree changes to apply for task ${taskId}`);
   }
@@ -231,11 +233,20 @@ export async function applyTaskPatch(taskId: string, startDir = process.cwd()): 
   await checkGitPatch(project.projectRoot, generated.patch);
   await applyGitPatch(project.projectRoot, generated.patch);
 
-  const updated = await updateTask(project.projectRoot, task.id, {
+  const taskPatchFiles = task.worktree_patch_files ?? [];
+  const taskUpdate: Partial<TaskRecord> = {
     apply_patch_path: patchPath,
     applied_at: new Date().toISOString(),
     applied_files: generated.files
-  });
+  };
+  if (!task.worktree_patch_path) {
+    taskUpdate.worktree_patch_path = patchPath;
+  }
+  if (taskPatchFiles.length === 0) {
+    taskUpdate.worktree_patch_files = generated.files;
+  }
+
+  const updated = await updateTask(project.projectRoot, task.id, taskUpdate);
 
   await appendTaskEvent(project.projectRoot, updated, {
     time: new Date().toISOString(),
@@ -248,10 +259,15 @@ export async function applyTaskPatch(taskId: string, startDir = process.cwd()): 
     }
   });
 
+  const cleanup = await cleanupAppliedWorktree(project.projectRoot, updated);
+  const finalTask = cleanup.task;
+
   return {
-    task: updated,
+    task: finalTask,
     files: generated.files,
-    patch_path: patchPath
+    patch_path: patchPath,
+    worktree_removed: cleanup.worktreeRemoved,
+    worktree_cleanup_error: cleanup.cleanupError
   };
 }
 
@@ -353,6 +369,15 @@ export function formatTaskStatus(task: TaskRecord): string {
   if (task.worktree_path) {
     lines.push(`worktree: ${task.worktree_path}`);
   }
+  if (task.worktree_patch_path) {
+    lines.push(`worktree_patch: ${task.worktree_patch_path}`);
+  }
+  if (task.worktree_removed_at) {
+    lines.push(`worktree_removed: ${task.worktree_removed_at}`);
+  }
+  if (task.worktree_cleanup_error) {
+    lines.push(`worktree_cleanup_error: ${task.worktree_cleanup_error}`);
+  }
   lines.push(`changed_files: ${task.changed_files.length > 0 ? task.changed_files.join(", ") : "none"}`);
   lines.push(`new_changed_files: ${task.new_changed_files.length > 0 ? task.new_changed_files.join(", ") : "none"}`);
   lines.push(`conflict_risk: ${task.conflict_risk ? "yes" : "no"}`);
@@ -380,6 +405,70 @@ function assertWorktreeTask(task: TaskRecord): void {
   }
   if (["queued", "running", "waiting"].includes(task.status)) {
     throw new CofounderError(`Task ${task.id} is still ${task.status}`);
+  }
+}
+
+async function readWorktreePatch(projectRoot: string, task: TaskRecord): Promise<{ patch: string; files: string[] }> {
+  if (await pathExists(task.execution_cwd)) {
+    return await createWorktreePatch(task.execution_cwd);
+  }
+
+  const savedPatchPath = task.worktree_patch_path ?? task.apply_patch_path;
+  if (savedPatchPath) {
+    return {
+      patch: await readFile(path.join(projectRoot, savedPatchPath), "utf8"),
+      files: (task.worktree_patch_files?.length ? task.worktree_patch_files : task.applied_files) ?? []
+    };
+  }
+
+  throw new CofounderError(`Task ${task.id} worktree is no longer available and no saved patch was found`);
+}
+
+async function cleanupAppliedWorktree(
+  projectRoot: string,
+  task: TaskRecord
+): Promise<{ task: TaskRecord; worktreeRemoved: boolean; cleanupError: string | null }> {
+  if (!task.worktree_path || task.worktree_removed_at || !(await pathExists(task.execution_cwd))) {
+    return {
+      task,
+      worktreeRemoved: false,
+      cleanupError: task.worktree_cleanup_error ?? null
+    };
+  }
+
+  try {
+    await removeGitWorktree(projectRoot, task.execution_cwd);
+    const updated = await updateTask(projectRoot, task.id, {
+      worktree_removed_at: new Date().toISOString(),
+      worktree_cleanup_error: null
+    });
+    await appendTaskEvent(projectRoot, updated, {
+      time: new Date().toISOString(),
+      task_id: task.id,
+      type: "git.worktree.removed",
+      message: task.worktree_path
+    });
+    return {
+      task: updated,
+      worktreeRemoved: true,
+      cleanupError: null
+    };
+  } catch (error) {
+    const cleanupError = error instanceof Error ? error.message : String(error);
+    const updated = await updateTask(projectRoot, task.id, {
+      worktree_cleanup_error: cleanupError
+    });
+    await appendTaskEvent(projectRoot, updated, {
+      time: new Date().toISOString(),
+      task_id: task.id,
+      type: "git.worktree.remove_failed",
+      message: cleanupError
+    });
+    return {
+      task: updated,
+      worktreeRemoved: false,
+      cleanupError
+    };
   }
 }
 
@@ -419,6 +508,9 @@ export function formatTaskResultPayload(view: TaskResultView): Record<string, un
     changed_files: view.task.changed_files,
     new_changed_files: view.task.new_changed_files,
     conflict_risk: view.task.conflict_risk,
+    worktree_patch_path: view.task.worktree_patch_path ?? null,
+    worktree_removed_at: view.task.worktree_removed_at ?? null,
+    worktree_cleanup_error: view.task.worktree_cleanup_error ?? null,
     result: view.result,
     recent_events: view.recent_logs.map(formatLogEntry)
   };

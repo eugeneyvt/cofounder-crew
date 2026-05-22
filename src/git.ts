@@ -65,6 +65,18 @@ export async function createGitWorktree(projectRoot: string, worktreePath: strin
   }
 }
 
+export async function removeGitWorktree(projectRoot: string, worktreePath: string): Promise<void> {
+  try {
+    await execFileAsync("git", ["worktree", "remove", "--force", worktreePath], {
+      cwd: projectRoot,
+      maxBuffer: 10 * 1024 * 1024
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new CofounderError(`failed to remove git worktree: ${message}`);
+  }
+}
+
 export async function createWorktreePatch(worktreePath: string): Promise<GitPatch> {
   try {
     await execFileAsync("git", ["add", "-N", "."], {

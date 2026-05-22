@@ -67,6 +67,10 @@ In automatic context mode, Cofounder strips that orchestrator text before buildi
 
 Git worktrees are created from `HEAD`. A repo with no commits has no baseline for a delegated task to branch from.
 
+## Why do worktree task directories disappear after apply?
+
+Cofounder saves the task patch under `.cofounder/runs/<task_id>/` before cleanup. After `cofounder task apply <task_id>` succeeds, the task worktree is removed so completed worktree tasks do not accumulate full project checkouts.
+
 ## Does updating npm update everyone automatically?
 
 The MCP entry usually runs:

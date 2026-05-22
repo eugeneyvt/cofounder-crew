@@ -773,6 +773,8 @@ async function commandTaskApply(args: string[]): Promise<void> {
   console.log(`applied ${result.files.length} file(s) from ${taskId}`);
   console.log(`patch: ${result.patch_path}`);
   if (result.files.length > 0) console.log(`files: ${result.files.join(", ")}`);
+  if (result.worktree_removed) console.log("worktree: removed");
+  if (result.worktree_cleanup_error) console.log(`worktree cleanup failed: ${result.worktree_cleanup_error}`);
 }
 
 async function commandTaskInterrupt(args: string[]): Promise<void> {

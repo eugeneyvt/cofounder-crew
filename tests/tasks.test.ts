@@ -37,6 +37,10 @@ test("task creation writes inspectable files", async () => {
     assert.equal(saved.cwd, dir);
     assert.equal(saved.execution_cwd, dir);
     assert.equal(saved.worktree_path, null);
+    assert.equal(saved.worktree_patch_path, null);
+    assert.deepEqual(saved.worktree_patch_files, []);
+    assert.equal(saved.worktree_removed_at, null);
+    assert.equal(saved.worktree_cleanup_error, null);
     assert.deepEqual(saved.changed_files, []);
     assert.deepEqual(saved.new_changed_files, []);
     assert.deepEqual(saved.touched_files, []);
@@ -253,10 +257,11 @@ test("Codex command uses member settings", async () => {
     const command = buildCodexCommand(task, member, runtime.settings, runtime.codex_config, runtime.skills);
 
     assert.equal(command.command, "codex");
-    assert.deepEqual(command.args.slice(0, 2), ["-a", "never"]);
-    assert.deepEqual(command.args.slice(2, 6), ["exec", "--cd", dir, "--skip-git-repo-check"]);
+    assert.deepEqual(command.args.slice(0, 4), ["-a", "never", "-s", "workspace-write"]);
+    assert.deepEqual(command.args.slice(4, 8), ["exec", "--cd", dir, "--skip-git-repo-check"]);
     assert.equal(command.args.indexOf("-a"), 0);
     assert.ok(command.args.indexOf("-a") < command.args.indexOf("exec"));
+    assert.ok(command.args.indexOf("-s") < command.args.indexOf("exec"));
     assert.ok(command.args.includes("-m"));
     assert.ok(command.args.includes("gpt-5.5"));
     assert.ok(command.args.includes("project_doc_max_bytes=0"));
@@ -342,8 +347,9 @@ use_member_home = false
     assert.equal(runtime.codex_config.oauth_credentials_store, "keyring");
     assert.equal(runtime.codex_config.tool_approval, "approve");
     assert.deepEqual(runtime.codex_config.allowed_servers, ["linear", "local"]);
-    assert.deepEqual(command.args.slice(0, 2), ["-a", "never"]);
+    assert.deepEqual(command.args.slice(0, 4), ["-a", "never", "-s", "workspace-write"]);
     assert.ok(command.args.indexOf("-a") < command.args.indexOf("exec"));
+    assert.ok(command.args.indexOf("-s") < command.args.indexOf("exec"));
     assert.ok(command.args.includes("--ignore-user-config"));
     assert.ok(command.args.some((arg) => arg.includes("mcp_oauth_credentials_store")));
     assert.ok(command.args.some((arg) => arg.includes("default_tools_approval_mode")));
@@ -686,6 +692,9 @@ use_member_home = false
     assert.equal(finalTask.execution_cwd, path.join(dir, finalTask.worktree_path));
     assert.ok(finalTask.changed_files.includes("changed-file.txt"));
     assert.ok(finalTask.new_changed_files.includes("changed-file.txt"));
+    assert.equal(finalTask.worktree_patch_path, path.join(".cofounder", "runs", finalTask.id, "worktree.patch"));
+    assert.deepEqual(finalTask.worktree_patch_files, ["changed-file.txt"]);
+    assert.match(await readFile(path.join(dir, finalTask.worktree_patch_path ?? ""), "utf8"), /diff --git a\/changed-file\.txt b\/changed-file\.txt/);
     assert.match(await readFile(path.join(finalTask.execution_cwd, "changed-file.txt"), "utf8"), /changed by fake codex/);
     await assert.rejects(() => readFile(path.join(dir, "changed-file.txt"), "utf8"));
 
@@ -694,12 +703,20 @@ use_member_home = false
 
     const applyResult = await applyTaskPatch(finalTask.id, dir);
     assert.deepEqual(applyResult.files, ["changed-file.txt"]);
+    assert.equal(applyResult.worktree_removed, true);
+    assert.equal(applyResult.worktree_cleanup_error, null);
     assert.match(await readFile(path.join(dir, "changed-file.txt"), "utf8"), /changed by fake codex/);
 
     const appliedTask = await readTask(project.projectRoot, finalTask.id);
     assert.ok(appliedTask.applied_at);
     assert.equal(appliedTask.apply_patch_path, path.join(".cofounder", "runs", finalTask.id, "apply.patch"));
     assert.deepEqual(appliedTask.applied_files, ["changed-file.txt"]);
+    assert.ok(appliedTask.worktree_removed_at);
+    assert.equal(appliedTask.worktree_cleanup_error, null);
+    await assert.rejects(() => readFile(path.join(finalTask.execution_cwd, "changed-file.txt"), "utf8"));
+
+    const patchAfterCleanup = await readTaskPatch(finalTask.id, dir);
+    assert.match(patchAfterCleanup, /diff --git a\/changed-file\.txt b\/changed-file\.txt/);
   } finally {
     process.env["PATH"] = originalPath;
     await rm(dir, { recursive: true, force: true });
@@ -739,8 +756,9 @@ test("interrupt cancels a running task and resumes the Codex session", async () 
     const result = await readFile(path.join(dir, completedResume.result_path), "utf8");
     assert.match(result, /fake resumed result/);
     const events = await readFile(path.join(dir, completedResume.events_path), "utf8");
-    assert.match(events, /codex -a never exec resume/);
+    assert.match(events, /codex -a never -s workspace-write exec resume/);
     assert.doesNotMatch(events, /codex exec resume .* -a never/);
+    assert.doesNotMatch(events, /codex exec resume .* -s workspace-write/);
   } finally {
     process.env["PATH"] = originalPath;
     await rm(dir, { recursive: true, force: true });

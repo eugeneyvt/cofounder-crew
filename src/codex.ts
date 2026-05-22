@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { diffChangedFiles, mergeFiles, readGitSnapshot } from "./git.js";
+import { createWorktreePatch, diffChangedFiles, mergeFiles, readGitSnapshot } from "./git.js";
 import { appendTaskEvent, appendTaskLog, markTaskStatus, readTask, updateTask } from "./tasks.js";
 import type { PreparedCodexConfig } from "./codexConfig.js";
 import type { PreparedSkills } from "./skills.js";
@@ -33,6 +33,9 @@ export function buildCodexCommand(
   if (settings.approval) {
     args.push("-a", settings.approval);
   }
+  if (settings.sandbox) {
+    args.push("-s", settings.sandbox);
+  }
 
   args.push(...(isResume
     ? [
@@ -53,9 +56,6 @@ export function buildCodexCommand(
 
   if (settings.model) {
     args.push("-m", settings.model);
-  }
-  if (!isResume && settings.sandbox) {
-    args.push("-s", settings.sandbox);
   }
   if (settings.reasoning_effort) {
     args.push("-c", `model_reasoning_effort="${settings.reasoning_effort}"`);
@@ -230,6 +230,7 @@ async function finalizeGitState(projectRoot: string, executionCwd: string, task:
     };
   }
 
+  const worktreePatch = await persistWorktreePatch(projectRoot, task);
   const baseFiles = task.base_changed_files ?? [];
   const newChangedFiles = diffChangedFiles(baseFiles, afterSnapshot.files);
   const retainedDirtyFiles = afterSnapshot.files.filter((file) => baseFiles.includes(file));
@@ -256,8 +257,47 @@ async function finalizeGitState(projectRoot: string, executionCwd: string, task:
     changed_files: changedFiles,
     new_changed_files: newChangedFiles,
     touched_files: touchedFiles,
-    conflict_risk: conflictRisk
+    conflict_risk: conflictRisk,
+    ...worktreePatch
   };
+}
+
+async function persistWorktreePatch(projectRoot: string, task: TaskRecord): Promise<Partial<TaskRecord>> {
+  if (task.work_mode !== "worktree" || !task.worktree_path) {
+    return {};
+  }
+
+  try {
+    const generated = await createWorktreePatch(task.execution_cwd);
+    const patchPath = path.join(".cofounder", "runs", task.id, "worktree.patch");
+    await writeFile(path.join(projectRoot, patchPath), generated.patch, "utf8");
+    await appendTaskEvent(projectRoot, task, {
+      time: new Date().toISOString(),
+      task_id: task.id,
+      type: "git.worktree.patch",
+      message: generated.files.length > 0 ? generated.files.join(", ") : "no worktree changes",
+      raw: {
+        files: generated.files,
+        patch_path: patchPath
+      }
+    });
+    return {
+      worktree_patch_path: patchPath,
+      worktree_patch_files: generated.files
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await appendTaskEvent(projectRoot, task, {
+      time: new Date().toISOString(),
+      task_id: task.id,
+      type: "git.worktree.patch_failed",
+      message
+    });
+    return {
+      worktree_patch_path: null,
+      worktree_patch_files: []
+    };
+  }
 }
 
 function maybeRecordCodexSessionId(

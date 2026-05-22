@@ -179,7 +179,9 @@ function registerTools(server: McpServer): void {
         task_id: result.task.id,
         applied_at: result.task.applied_at,
         patch_path: result.patch_path,
-        files: result.files
+        files: result.files,
+        worktree_removed: result.worktree_removed,
+        worktree_cleanup_error: result.worktree_cleanup_error
       });
     }
   );

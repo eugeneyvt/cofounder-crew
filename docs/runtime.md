@@ -79,6 +79,8 @@ Apply it with:
 cofounder task apply <task_id>
 ```
 
+Cofounder saves a worktree patch under `.cofounder/runs/<task_id>/worktree.patch` when the task finishes. After a successful apply, Cofounder removes the task worktree and keeps the saved patch plus `.cofounder/runs/<task_id>/apply.patch` for later inspection.
+
 Worktree mode requires a Git repository with at least one commit.
 
 ## Interruption
