@@ -105,6 +105,54 @@ test("CLI can add members, MCP servers, and scoped skills", async () => {
   }
 });
 
+test("mcp assign preserves formatting outside the mcp table", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-mcp-assign-format-"));
+  try {
+    await initProject(dir);
+    const settingsPath = path.join(dir, ".cofounder/members/backend/settings.toml");
+    const settings = await readFile(settingsPath, "utf8");
+    await writeFile(
+      settingsPath,
+      settings.replace(
+        `[skills]
+mode = "isolated"
+from_project = []
+from_main = []
+team = []
+`,
+        `[skills]
+mode = "isolated"
+from_project = []
+from_main = []
+team = [
+  "design-review",
+  "release-notes",
+]
+`
+      ),
+      "utf8"
+    );
+
+    await execFileAsync(cli, [
+      ...cliArgs,
+      "mcp",
+      "assign",
+      "github",
+      "backend",
+      "--source",
+      "main"
+    ], { cwd: dir });
+
+    const updated = await readFile(settingsPath, "utf8");
+    assert.match(updated, /from_main = \[ "github" \]/);
+    assert.match(updated, /oauth_credentials_store = "keyring"/);
+    assert.match(updated, /tool_approval = "approve"/);
+    assert.match(updated, /team = \[\n  "design-review",\n  "release-notes",\n\]\n\n\[memory\]/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("cofounder update repairs Codex MCP without changing project dependencies", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-update-"));
   try {

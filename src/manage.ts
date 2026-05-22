@@ -1,4 +1,4 @@
-import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { stringify as stringifyToml } from "smol-toml";
 import YAML from "yaml";
@@ -238,8 +238,6 @@ export async function assignMcpServer(
     if (previousMcp?.include_inline_env !== undefined) nextMcp.include_inline_env = previousMcp.include_inline_env;
     if (previousMcp?.oauth_credentials_store) nextMcp.oauth_credentials_store = previousMcp.oauth_credentials_store;
     if (previousMcp?.tool_approval) nextMcp.tool_approval = previousMcp.tool_approval;
-    settings.mcp = nextMcp;
-
     const key = source === "main" ? "from_main" : "team";
     nextMcp[key] = addUnique(nextMcp[key] ?? [], serverId);
     if (source === "main" && !nextMcp.oauth_credentials_store) {
@@ -249,7 +247,7 @@ export async function assignMcpServer(
       nextMcp.tool_approval = options.tool_approval ?? "approve";
     }
     const paths = getMemberPaths(project, member);
-    await writeFile(paths.settingsAbsolutePath, formatMemberSettings(settings), "utf8");
+    await writeMemberMcpSettings(paths.settingsAbsolutePath, nextMcp);
     changed.push(paths.settingsPath);
   }
 
@@ -430,6 +428,55 @@ Keep work scoped to the assigned task, report changed files, and include verific
 
 function formatMemberSettings(settings: MemberSettings): string {
   return `${stringifyToml(settings)}\n`;
+}
+
+async function writeMemberMcpSettings(settingsPath: string, mcp: NonNullable<MemberSettings["mcp"]>): Promise<void> {
+  const raw = await readFile(settingsPath, "utf8");
+  const next = replaceTomlTopLevelTable(raw, "mcp", mcp as Record<string, unknown>);
+  await writeFile(settingsPath, next, "utf8");
+}
+
+function replaceTomlTopLevelTable(raw: string, tableName: string, value: Record<string, unknown>): string {
+  const newline = raw.includes("\r\n") ? "\r\n" : "\n";
+  const lines = raw.replace(/\r\n/g, "\n").split("\n");
+  if (lines.at(-1) === "") lines.pop();
+
+  const replacement = stringifyToml({ [tableName]: value }).trimEnd().split("\n");
+  const tableHeaderPattern = new RegExp(`^\\s*\\[${escapeRegExp(tableName)}\\]\\s*(?:#.*)?$`);
+  const anyTableHeaderPattern = /^\s*\[[^\]]+\]\s*(?:#.*)?$/;
+  const start = lines.findIndex((line) => tableHeaderPattern.test(line));
+
+  if (start === -1) {
+    const nextLines = [...lines];
+    if (nextLines.length > 0 && nextLines.at(-1) !== "") nextLines.push("");
+    nextLines.push(...replacement);
+    return `${nextLines.join(newline)}${newline}`;
+  }
+
+  let end = start + 1;
+  while (end < lines.length) {
+    const line = lines[end];
+    if (line === undefined || anyTableHeaderPattern.test(line)) break;
+    end += 1;
+  }
+
+  const oldTable = lines.slice(start, end);
+  const separator: string[] = [];
+  while (oldTable.length > 0 && oldTable.at(-1)?.trim() === "") {
+    separator.unshift(oldTable.pop() ?? "");
+  }
+
+  const nextLines = [
+    ...lines.slice(0, start),
+    ...replacement,
+    ...separator,
+    ...lines.slice(end)
+  ];
+  return `${nextLines.join(newline)}${newline}`;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function formatSkillMarkdown(id: string, description = "Describe when this skill should be used.", instructions = "Write skill instructions here."): string {
