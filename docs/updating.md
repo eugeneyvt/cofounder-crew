@@ -18,7 +18,7 @@ Inspect first:
 - whether .cofounder/.gitignore ignores runs/, worktrees/, and members/*/home/
 
 Then update safely:
-- If the global cofounder command is missing, install it with npm install -g cofounder-crew@latest.
+- If the global cofounder command is missing or behind npm latest, install it with npm install -g cofounder-crew@latest.
 - If cofounder-crew is pinned in package.json, report it and only update that pin when I explicitly ask.
 - If MCP is missing or wrong, repair it.
 - Do not re-run init over existing .cofounder/.
@@ -53,9 +53,12 @@ npx -y --package cofounder-crew@latest -- cofounder update --yes
 
 What it does:
 
+- checks whether the global CLI is behind npm latest and updates it when confirmed
 - repairs the Codex MCP entry by default
 - runs `cofounder doctor`
 - leaves `.cofounder/`, prompts, settings, memory, MCP files, `package.json`, and `AGENTS.md` untouched
+
+Use `cofounder update --yes` for a non-interactive run that also updates an outdated global CLI automatically.
 
 Skip MCP repair when you only want checks:
 
@@ -63,7 +66,7 @@ Skip MCP repair when you only want checks:
 cofounder update --no-setup-codex
 ```
 
-Update a globally installed `cofounder` command:
+Update a globally installed `cofounder` command directly:
 
 ```bash
 cofounder self update

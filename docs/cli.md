@@ -40,13 +40,13 @@ cofounder self update
 
 `start` initializes missing project files, checks the local setup, optionally installs the Codex MCP entry, and prints next steps.
 
-`doctor` checks Node, npm, Codex, Git, `.cofounder/`, `AGENTS.md`, team config, runtime ignores, and the Codex MCP entry.
+`doctor` checks the Cofounder CLI version, Node, npm, Codex, Git, `.cofounder/`, `AGENTS.md`, team config, runtime ignores, and the Codex MCP entry.
 
-`update` repairs the Codex MCP entry by default and runs doctor for the current project. Use `--no-setup-codex` to skip MCP repair.
+`update` updates an outdated global Cofounder CLI when confirmed, repairs the Codex MCP entry by default, and runs doctor for the current project. Use `--yes` for non-interactive CLI updates and `--no-setup-codex` to skip MCP repair.
 
 `pin` adds or updates `cofounder-crew` as a project-local dev dependency. This is optional and mainly useful when a repo wants to record a fixed Cofounder runtime.
 
-`self update` updates the globally installed `cofounder` command.
+`self update` updates the globally installed `cofounder` command directly.
 
 ## Team
 

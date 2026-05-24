@@ -4,6 +4,7 @@ import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { PRIMARY_CALLER, getMember, loadMemberSettings, loadProject } from "./config.js";
 import { CofounderError } from "./errors.js";
@@ -48,6 +49,7 @@ import {
 import type { MemberSettings, WorkMode } from "./types.js";
 
 const execFileAsync = promisify(execFile);
+const PACKAGE_NAME = "cofounder-crew";
 
 interface CommandContext {
   argv: string[];
@@ -97,7 +99,7 @@ const commands: CommandDefinition[] = [
   },
   {
     path: ["update"],
-    summary: "Update this project and repair Codex MCP.",
+    summary: "Update Cofounder CLI, this project, and Codex MCP.",
     usage: "cofounder update [--yes] [--no-setup-codex]",
     run: commandUpdate
   },
@@ -434,6 +436,8 @@ async function commandUpdate(args: string[]): Promise<void> {
   const projectRoot = await findProjectRoot(process.cwd()) ?? process.cwd();
 
   printHeader("Update Cofounder");
+  await updateGlobalCliIfOutdated(yes);
+
   const packageInfo = await readPackageInfo(projectRoot);
   if (!packageInfo) {
     printInfo("No package.json found. Leaving project dependencies unchanged.");
@@ -491,9 +495,7 @@ async function commandPin(args: string[]): Promise<void> {
 
 async function commandSelfUpdate(_args: string[]): Promise<void> {
   printHeader("Update Cofounder CLI");
-  printInfo("Running npm install -g cofounder-crew@latest");
-  await runLoggedCommand("npm", ["install", "-g", "cofounder-crew@latest"], process.cwd());
-  printInfo("Updated global cofounder command.");
+  await installGlobalCofounderCommand();
 }
 
 async function commandSetupCodex(args: string[]): Promise<void> {
@@ -818,6 +820,7 @@ async function collectDoctorChecks(): Promise<Array<{ name: string; ok: boolean;
   const checks: Array<{ name: string; ok: boolean; detail?: string }> = [];
   const nodeMajor = Number(process.versions.node.split(".")[0]);
   checks.push({ name: "Node.js >=22", ok: nodeMajor >= 22, detail: process.version });
+  checks.push(await cliVersionCheck());
   checks.push(await commandCheck("npm", ["--version"], "npm available"));
   checks.push(await commandCheck("codex", ["--version"], "Codex CLI available"));
 
@@ -850,6 +853,238 @@ async function collectDoctorChecks(): Promise<Array<{ name: string; ok: boolean;
   return checks;
 }
 
+interface CliVersionStatus {
+  current: string | null;
+  latest: string | null;
+  latestError: string | null;
+  globalInstalled: boolean | null;
+  globalVersion: string | null;
+  globalError: string | null;
+  comparison: number | null;
+}
+
+async function updateGlobalCliIfOutdated(yes: boolean): Promise<void> {
+  const status = await getCliVersionStatus();
+  if (!status.current) {
+    printInfo("Could not determine the current Cofounder CLI version.");
+    return;
+  }
+  if (status.globalInstalled === false) {
+    let shouldInstall = yes;
+    if (!shouldInstall && process.stdin.isTTY && process.stdout.isTTY) {
+      shouldInstall = await confirm("Install the global cofounder command?", true);
+    }
+    if (!shouldInstall) {
+      printInfo("Global Cofounder CLI is not installed. Run cofounder self update or re-run cofounder update --yes.");
+      return;
+    }
+    printInfo("Installing global cofounder command.");
+    await installGlobalCofounderCommand();
+    return;
+  }
+  if (!status.latest) {
+    printInfo(`Cofounder CLI ${status.current}; could not check npm latest${status.latestError ? ` (${status.latestError})` : ""}.`);
+    return;
+  }
+
+  const installedVersion = status.globalVersion ?? status.current;
+  const comparison = comparePackageVersions(installedVersion, status.latest);
+  if (comparison === null) {
+    printInfo(`Cofounder CLI ${installedVersion}; npm latest is ${status.latest}. Could not compare versions automatically.`);
+    return;
+  }
+  if (comparison >= 0) {
+    const suffix = comparison === 0 ? "current" : `newer than npm latest ${status.latest}`;
+    printInfo(`Cofounder CLI is ${suffix} (${installedVersion}).`);
+    return;
+  }
+
+  let shouldUpdate = yes;
+  if (!shouldUpdate && process.stdin.isTTY && process.stdout.isTTY) {
+    shouldUpdate = await confirm(`Update global cofounder from ${installedVersion} to ${status.latest}?`, true);
+  }
+
+  if (!shouldUpdate) {
+    printInfo(`Global Cofounder CLI remains ${installedVersion}; latest is ${status.latest}. Run cofounder self update or re-run cofounder update --yes.`);
+    return;
+  }
+
+  printInfo(`Updating global cofounder from ${installedVersion} to ${status.latest}.`);
+  await installGlobalCofounderCommand();
+}
+
+async function installGlobalCofounderCommand(): Promise<void> {
+  printInfo(`Running npm install -g ${PACKAGE_NAME}@latest`);
+  await runLoggedCommand("npm", ["install", "-g", `${PACKAGE_NAME}@latest`], process.cwd());
+  printInfo("Updated global cofounder command.");
+}
+
+async function cliVersionCheck(): Promise<{ name: string; ok: boolean; detail?: string }> {
+  const status = await getCliVersionStatus();
+  if (!status.current) {
+    return { name: "Cofounder CLI version", ok: false, detail: "unknown" };
+  }
+  if (!status.latest) {
+    return {
+      name: "Cofounder CLI version",
+      ok: true,
+      detail: `${status.current} (npm latest unavailable)`
+    };
+  }
+  if (status.comparison === null) {
+    return {
+      name: "Cofounder CLI version",
+      ok: true,
+      detail: `${status.current} (npm latest ${status.latest})`
+    };
+  }
+  if (status.comparison < 0) {
+    return {
+      name: "Cofounder CLI version",
+      ok: false,
+      detail: `${status.current} (latest ${status.latest} available)`
+    };
+  }
+  if (status.comparison > 0) {
+    return {
+      name: "Cofounder CLI version",
+      ok: true,
+      detail: `${status.current} (newer than npm latest ${status.latest})`
+    };
+  }
+  return { name: "Cofounder CLI version", ok: true, detail: `${status.current} (latest)` };
+}
+
+async function getCliVersionStatus(): Promise<CliVersionStatus> {
+  const [current, latestResult, globalResult] = await Promise.all([
+    readOwnPackageVersion(),
+    readLatestPublishedVersion(),
+    readGlobalPackageVersion()
+  ]);
+  const latest = latestResult.version;
+  return {
+    current,
+    latest,
+    latestError: latestResult.error,
+    globalInstalled: globalResult.installed,
+    globalVersion: globalResult.version,
+    globalError: globalResult.error,
+    comparison: current && latest ? comparePackageVersions(current, latest) : null
+  };
+}
+
+async function readOwnPackageVersion(): Promise<string | null> {
+  let currentDir = path.dirname(fileURLToPath(import.meta.url));
+  for (let depth = 0; depth < 6; depth += 1) {
+    const packagePath = path.join(currentDir, "package.json");
+    if (await pathExists(packagePath)) {
+      try {
+        const parsed = JSON.parse(await readFile(packagePath, "utf8")) as unknown;
+        if (isRecord(parsed) && parsed["name"] === PACKAGE_NAME && typeof parsed["version"] === "string") {
+          return parsed["version"];
+        }
+      } catch {
+        return null;
+      }
+    }
+
+    const parent = path.dirname(currentDir);
+    if (parent === currentDir) {
+      break;
+    }
+    currentDir = parent;
+  }
+  return null;
+}
+
+async function readLatestPublishedVersion(): Promise<{ version: string | null; error: string | null }> {
+  try {
+    const { stdout } = await execFileAsync("npm", ["view", PACKAGE_NAME, "version"], {
+      timeout: 10_000,
+      maxBuffer: 1024 * 1024
+    });
+    const lines = stdout.trim().split(/\r?\n/).map((line) => line.trim()).filter((line) => line.length > 0);
+    const version = lines.at(-1) ?? "";
+    return version ? { version, error: null } : { version: null, error: "npm returned no version" };
+  } catch (error) {
+    return { version: null, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function readGlobalPackageVersion(): Promise<{ installed: boolean | null; version: string | null; error: string | null }> {
+  try {
+    const { stdout } = await execFileAsync("npm", ["list", "-g", PACKAGE_NAME, "--json", "--depth=0"], {
+      timeout: 10_000,
+      maxBuffer: 1024 * 1024
+    });
+    return parseGlobalPackageList(stdout);
+  } catch (error) {
+    const stdout = getErrorStdout(error);
+    if (stdout) {
+      const parsed = parseGlobalPackageList(stdout);
+      if (parsed.installed !== null) {
+        return parsed;
+      }
+    }
+    return { installed: null, version: null, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+function parseGlobalPackageList(stdout: string): { installed: boolean | null; version: string | null; error: string | null } {
+  try {
+    const parsed = JSON.parse(stdout) as unknown;
+    const dependencies = isRecord(parsed) && isRecord(parsed["dependencies"]) ? parsed["dependencies"] : {};
+    const dependency = dependencies[PACKAGE_NAME];
+    if (isRecord(dependency) && typeof dependency["version"] === "string") {
+      return { installed: true, version: dependency["version"], error: null };
+    }
+    return { installed: false, version: null, error: null };
+  } catch (error) {
+    return { installed: null, version: null, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+function getErrorStdout(error: unknown): string | null {
+  if (!isRecord(error)) {
+    return null;
+  }
+  const stdout = error["stdout"];
+  if (typeof stdout === "string") {
+    return stdout;
+  }
+  return Buffer.isBuffer(stdout) ? stdout.toString("utf8") : null;
+}
+
+function comparePackageVersions(left: string, right: string): number | null {
+  const leftSegments = parseVersionSegments(left);
+  const rightSegments = parseVersionSegments(right);
+  if (!leftSegments || !rightSegments) {
+    return null;
+  }
+
+  const length = Math.max(leftSegments.length, rightSegments.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftValue = leftSegments[index] ?? 0;
+    const rightValue = rightSegments[index] ?? 0;
+    if (leftValue < rightValue) {
+      return -1;
+    }
+    if (leftValue > rightValue) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+function parseVersionSegments(value: string): number[] | null {
+  const core = value.split(/[+-]/, 1)[0];
+  if (!core) {
+    return null;
+  }
+  const segments = core.split(".").map((segment) => Number(segment));
+  return segments.length > 0 && segments.every((segment) => Number.isInteger(segment) && segment >= 0) ? segments : null;
+}
+
 async function readPackageInfo(projectRoot: string): Promise<{ path: string; data: Record<string, unknown> } | null> {
   const packagePath = path.join(projectRoot, "package.json");
   if (!(await pathExists(packagePath))) {
@@ -876,6 +1111,10 @@ function getCofounderDependencyType(packageJson: Record<string, unknown>): "depe
 
 function hasPackageDependency(value: unknown): boolean {
   return typeof value === "object" && value !== null && Object.prototype.hasOwnProperty.call(value, "cofounder-crew");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function runLoggedCommand(command: string, args: string[], cwd: string): Promise<void> {

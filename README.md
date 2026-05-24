@@ -280,9 +280,9 @@ If the global command is not available, use the one-off npm runner:
 npx -y --package cofounder-crew@latest -- cofounder update --yes
 ```
 
-`cofounder update` repairs the Codex MCP entry, runs doctor, and preserves existing `.cofounder/`, member prompts/settings, memory, MCP config, `package.json`, and `AGENTS.md`. Skip MCP repair with `cofounder update --no-setup-codex`.
+`cofounder update` checks whether the global CLI is behind npm latest, repairs the Codex MCP entry, runs doctor, and preserves existing `.cofounder/`, member prompts/settings, memory, MCP config, `package.json`, and `AGENTS.md`. In interactive shells it asks before updating the global CLI; with `--yes` it updates automatically. Skip MCP repair with `cofounder update --no-setup-codex`.
 
-Update the global CLI itself:
+Update the global CLI directly:
 
 ```bash
 cofounder self update

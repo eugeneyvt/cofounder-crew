@@ -181,6 +181,62 @@ test("cofounder update repairs Codex MCP without changing project dependencies",
   }
 });
 
+test("cofounder update --yes updates the global CLI when npm latest is newer", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-update-global-"));
+  try {
+    await initProject(dir);
+
+    const fake = await makeFakeToolchain(dir, { latestVersion: "999.0.0" });
+    const { stdout } = await execFileAsync(cli, [...cliArgs, "update", "--yes", "--no-setup-codex"], {
+      cwd: dir,
+      env: fake.env
+    });
+
+    const npmLog = await readFile(fake.npmLog, "utf8");
+    assert.match(stdout, /Updating global cofounder from .* to 999\.0\.0/);
+    assert.match(npmLog, /npm view cofounder-crew version/);
+    assert.equal((npmLog.match(/npm install -g cofounder-crew@latest/g) ?? []).length, 1);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("cofounder update --yes installs the global CLI when it is missing", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-update-global-missing-"));
+  try {
+    await initProject(dir);
+
+    const fake = await makeFakeToolchain(dir, { globalVersion: null });
+    const { stdout } = await execFileAsync(cli, [...cliArgs, "update", "--yes", "--no-setup-codex"], {
+      cwd: dir,
+      env: fake.env
+    });
+
+    const npmLog = await readFile(fake.npmLog, "utf8");
+    assert.match(stdout, /Installing global cofounder command/);
+    assert.equal((npmLog.match(/npm install -g cofounder-crew@latest/g) ?? []).length, 1);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("cofounder doctor reports the Cofounder CLI version", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-doctor-version-"));
+  try {
+    await initProject(dir);
+
+    const fake = await makeFakeToolchain(dir);
+    const { stdout } = await execFileAsync(cli, [...cliArgs, "doctor"], {
+      cwd: dir,
+      env: fake.env
+    });
+
+    assert.match(stdout, /^OK  Cofounder CLI version - \d+\.\d+\.\d+ /m);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("cofounder pin adds or updates the project-local package pin", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "cofounder-pin-"));
   try {
@@ -216,7 +272,10 @@ test("cofounder self update updates the global CLI installation", async () => {
   }
 });
 
-async function makeFakeToolchain(dir: string): Promise<{ env: NodeJS.ProcessEnv; npmLog: string; codexLog: string }> {
+async function makeFakeToolchain(
+  dir: string,
+  options: { latestVersion?: string; globalVersion?: string | null } = {}
+): Promise<{ env: NodeJS.ProcessEnv; npmLog: string; codexLog: string }> {
   const binDir = path.join(dir, "bin");
   const npmLog = path.join(dir, "npm.log");
   const codexLog = path.join(dir, "codex.log");
@@ -225,6 +284,21 @@ async function makeFakeToolchain(dir: string): Promise<{ env: NodeJS.ProcessEnv;
 printf 'npm %s\\n' "$*" >> "$FAKE_NPM_LOG"
 if [ "$1" = "--version" ]; then
   echo "10.0.0"
+  exit 0
+fi
+if [ "$1" = "view" ] && [ "$2" = "cofounder-crew" ] && [ "$3" = "version" ]; then
+  if [ -n "$FAKE_NPM_LATEST" ]; then
+    echo "$FAKE_NPM_LATEST"
+  fi
+  exit 0
+fi
+if [ "$1" = "list" ] && [ "$2" = "-g" ] && [ "$3" = "cofounder-crew" ]; then
+  if [ "$FAKE_NPM_GLOBAL_VERSION" = "__missing__" ]; then
+    echo '{"dependencies":{}}'
+  elif [ -n "$FAKE_NPM_GLOBAL_VERSION" ]; then
+    printf '{"dependencies":{"cofounder-crew":{"version":"%s"}}}\\n' "$FAKE_NPM_GLOBAL_VERSION"
+  fi
+  exit 0
 fi
 exit 0
 `, "utf8");
@@ -248,6 +322,8 @@ exit 0
     env: {
       ...process.env,
       FAKE_NPM_LOG: npmLog,
+      FAKE_NPM_LATEST: options.latestVersion ?? "",
+      FAKE_NPM_GLOBAL_VERSION: options.globalVersion === null ? "__missing__" : options.globalVersion ?? "",
       FAKE_CODEX_LOG: codexLog,
       PATH: `${binDir}${path.delimiter}${process.env["PATH"] ?? ""}`
     }
